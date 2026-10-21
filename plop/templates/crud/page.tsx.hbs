@@ -1,0 +1,15 @@
+import { {{pascalCase entityName}}Container } from "@/features/{{kebabCase entityName}}/{{kebabCase entityName}}-container";
+
+export default function {{pascalCase pluralName}}Page() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {{pascalCase pluralName}}
+        </h1>
+      </div>
+
+      <{{pascalCase entityName}}Container />
+    </div>
+  );
+}

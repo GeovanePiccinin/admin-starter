@@ -1,0 +1,58 @@
+import { z } from "zod";
+
+const {{camelCase entityName}}FieldsSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "O nome deve possuir pelo menos 2 caracteres.")
+    .max(100, "O nome deve possuir no máximo 100 caracteres."),
+
+  description: z
+    .string()
+    .trim()
+    .max(500, "A descrição deve possuir no máximo 500 caracteres.")
+    .optional()
+    .or(z.literal("")),
+
+  duration: z.coerce
+    .number({
+      error: "Informe a duração.",
+    })
+    .int("A duração deve ser um número inteiro.")
+    .positive("A duração deve ser maior que zero."),
+
+  price: z.coerce
+    .number({
+      error: "Informe o preço.",
+    })
+    .nonnegative("O preço não pode ser negativo."),
+
+  active: z.boolean(),
+});
+
+export const create{{pascalCase entityName}}Schema =
+  {{camelCase entityName}}FieldsSchema;
+
+export const update{{pascalCase entityName}}Schema =
+  {{camelCase entityName}}FieldsSchema.extend({
+    id: z.string().min(1),
+  });
+
+export const delete{{pascalCase entityName}}Schema = z.object({
+  id: z.string().min(1),
+});
+
+export type Create{{pascalCase entityName}}Input =
+  z.input<typeof create{{pascalCase entityName}}Schema>;
+
+export type Create{{pascalCase entityName}}Data =
+  z.output<typeof create{{pascalCase entityName}}Schema>;
+
+export type Update{{pascalCase entityName}}Input =
+  z.input<typeof update{{pascalCase entityName}}Schema>;
+
+export type Update{{pascalCase entityName}}Data =
+  z.output<typeof update{{pascalCase entityName}}Schema>;
+
+export type Delete{{pascalCase entityName}}Input =
+  z.infer<typeof delete{{pascalCase entityName}}Schema>;

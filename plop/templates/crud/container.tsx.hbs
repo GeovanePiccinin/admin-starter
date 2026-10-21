@@ -1,0 +1,514 @@
+"use client";
+
+import { useState } from "react";
+
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+
+import type { SortingState } from "@tanstack/react-table";
+
+import { Pencil, Plus, Trash2 } from "lucide-react";
+
+import { DataTable } from "@/components/data-table/data-table";
+import { createAppColumnHelper } from "@/components/data-table/table";
+import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { ErrorState } from "@/components/feedback/error-state";
+import { SearchInput } from "@/components/search-input/search-input";
+import { Button } from "@/components/ui/button";
+
+import { useListControls } from "@/hooks/use-list-controls";
+
+import { toast } from "sonner";
+
+import { CrudConfirmDialog } from "@/components/crud/crud-confirm-dialog";
+import { CrudFormDialog } from "@/components/crud/crud-form-dialog";
+
+import {
+  create{{pascalCase entityName}}Action,
+  delete{{pascalCase entityName}}Action,
+  get{{pascalCase pluralName}},
+  update{{pascalCase entityName}}Action,
+} from "./{{kebabCase entityName}}.actions";
+
+import type { Create{{pascalCase entityName}}Data } from "./{{kebabCase entityName}}.schema";
+
+import type {
+  {{pascalCase entityName}}ListItem,
+  {{pascalCase entityName}}ListQuery,
+} from "./{{kebabCase entityName}}.query";
+
+import { {{pascalCase entityName}}Form } from "./{{kebabCase entityName}}-form";
+
+type {{pascalCase entityName}}SortField =
+  | "name"
+  | "duration"
+  | "price"
+  | "active"
+  | "createdAt";
+
+const PAGE_SIZE = 10;
+
+const allowedSortFields: {{pascalCase entityName}}SortField[] = [
+  "name",
+  "duration",
+  "price",
+  "active",
+  "createdAt",
+];
+
+function getSortingQuery(
+  sorting: SortingState,
+): Pick<
+  {{pascalCase entityName}}ListQuery,
+  "sortBy" | "sortDirection"
+> {
+  const firstSort = sorting[0];
+
+  if (!firstSort) {
+    return {
+      sortBy: "name",
+      sortDirection: "asc",
+    };
+  }
+
+  const sortBy = allowedSortFields.includes(
+    firstSort.id as {{pascalCase entityName}}SortField,
+  )
+    ? (firstSort.id as {{pascalCase entityName}}SortField)
+    : "name";
+
+  return {
+    sortBy,
+    sortDirection: firstSort.desc ? "desc" : "asc",
+  };
+}
+
+export function {{pascalCase entityName}}Container() {
+  const queryClient = useQueryClient();
+
+  const {
+    search,
+    debouncedSearch,
+    sorting,
+    pagination,
+    setSearch,
+    setSorting,
+    setPagination,
+  } = useListControls<{{pascalCase entityName}}SortField>({
+    initialPageSize: PAGE_SIZE,
+    debounceDelay: 400,
+  });
+
+  const [formOpen, setFormOpen] = useState(false);
+
+  const [editing{{pascalCase entityName}}, setEditing{{pascalCase entityName}}] =
+    useState<{{pascalCase entityName}}ListItem | undefined>();
+
+  const [
+    deleting{{pascalCase entityName}},
+    setDeleting{{pascalCase entityName}},
+  ] = useState<{{pascalCase entityName}}ListItem | undefined>();
+
+  const sortingQuery = getSortingQuery(sorting);
+
+  const query: {{pascalCase entityName}}ListQuery = {
+    search: debouncedSearch,
+    page: pagination.pageIndex + 1,
+    pageSize: pagination.pageSize,
+    sortBy: sortingQuery.sortBy,
+    sortDirection: sortingQuery.sortDirection,
+  };
+
+  const {{camelCase entityName}}sQuery = useQuery({
+    queryKey: [
+      "{{camelCase pluralName}}",
+      query.search,
+      query.page,
+      query.pageSize,
+      query.sortBy,
+      query.sortDirection,
+    ],
+
+    queryFn: () => get{{pascalCase pluralName}}(query),
+
+    placeholderData: (previousData) => previousData,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: create{{pascalCase entityName}}Action,
+
+    onSuccess: async () => {
+      toast.success("{{pascalCase entityName}} cadastrado com sucesso.");
+
+      setFormOpen(false);
+
+      await queryClient.invalidateQueries({
+        queryKey: ["{{camelCase pluralName}}"],
+      });
+    },
+
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível cadastrar o {{camelCase entityName}}.",
+      );
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: update{{pascalCase entityName}}Action,
+
+    onSuccess: async () => {
+      toast.success("{{pascalCase entityName}} atualizado com sucesso.");
+
+      setFormOpen(false);
+      setEditing{{pascalCase entityName}}(undefined);
+
+      await queryClient.invalidateQueries({
+        queryKey: ["{{camelCase pluralName}}"],
+      });
+    },
+
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar o {{camelCase entityName}}.",
+      );
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: delete{{pascalCase entityName}}Action,
+
+    onSuccess: async () => {
+      toast.success("{{pascalCase entityName}} excluído com sucesso.");
+
+      setDeleting{{pascalCase entityName}}(undefined);
+
+      await queryClient.invalidateQueries({
+        queryKey: ["{{camelCase pluralName}}"],
+      });
+    },
+
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível excluir o {{camelCase entityName}}.",
+      );
+    },
+  });
+
+  const isFormPending =
+    createMutation.isPending || updateMutation.isPending;
+
+  function handleCreate() {
+    setEditing{{pascalCase entityName}}(undefined);
+    setFormOpen(true);
+  }
+
+  function handleEdit(
+    {{camelCase entityName}}: {{pascalCase entityName}}ListItem,
+  ) {
+    setEditing{{pascalCase entityName}}({{camelCase entityName}});
+    setFormOpen(true);
+  }
+
+  function handleFormSubmit(data: Create{{pascalCase entityName}}Data) {
+    if (editing{{pascalCase entityName}}) {
+      updateMutation.mutate({
+        id: editing{{pascalCase entityName}}.id,
+        ...data,
+      });
+
+      return;
+    }
+
+    createMutation.mutate(data);
+  }
+
+  function handleDelete() {
+    if (!deleting{{pascalCase entityName}}) {
+      return;
+    }
+
+    deleteMutation.mutate({
+      id: deleting{{pascalCase entityName}}.id,
+    });
+  }
+
+  const columnHelper =
+    createAppColumnHelper<{{pascalCase entityName}}ListItem>();
+
+  const columns = columnHelper.columns([
+    columnHelper.accessor("name", {
+      header: "Nome",
+      enableSorting: true,
+    }),
+
+    columnHelper.accessor("duration", {
+      header: "Duração",
+      enableSorting: true,
+
+      cell: ({ getValue }) => `${getValue()} min`,
+    }),
+
+    columnHelper.accessor("price", {
+      header: "Preço",
+      enableSorting: true,
+
+      cell: ({ getValue }) =>
+        new Intl.NumberFormat("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        }).format(Number(getValue())),
+    }),
+
+    columnHelper.accessor("active", {
+      header: "Status",
+      enableSorting: true,
+
+      cell: ({ getValue }) => (getValue() ? "Ativo" : "Inativo"),
+    }),
+
+    columnHelper.display({
+      id: "actions",
+
+      header: "Ações",
+
+      enableSorting: false,
+
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => handleEdit(row.original)}
+            aria-label={`Editar ${row.original.name}`}
+          >
+            <Pencil className="size-4" />
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() =>
+              setDeleting{{pascalCase entityName}}(row.original)
+            }
+            aria-label={`Excluir ${row.original.name}`}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
+      ),
+    }),
+  ]);
+
+  if (
+    {{camelCase entityName}}sQuery.isPending &&
+    !{{camelCase entityName}}sQuery.data
+  ) {
+    return (
+      <div className="space-y-4">
+        <{{pascalCase entityName}}Header onCreate={handleCreate} />
+
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Pesquisar {{camelCase pluralName}}..."
+        />
+
+        <DataTableSkeleton columns={5} rows={PAGE_SIZE} />
+      </div>
+    );
+  }
+
+  if (
+    {{camelCase entityName}}sQuery.isError &&
+    !{{camelCase entityName}}sQuery.data
+  ) {
+    return (
+      <div className="space-y-4">
+        <{{pascalCase entityName}}Header onCreate={handleCreate} />
+
+        <ErrorState
+          title="Não foi possível carregar os {{camelCase pluralName}}."
+          description="Tente novamente. Se o problema persistir, verifique sua conexão."
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                void {{camelCase entityName}}sQuery.refetch();
+              }}
+            >
+              Tentar novamente
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  const data = {{camelCase entityName}}sQuery.data;
+
+  if (!data) {
+    return null;
+  }
+
+  return (
+    <>
+      <div className="space-y-4">
+        <{{pascalCase entityName}}Header onCreate={handleCreate} />
+
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Pesquisar {{camelCase pluralName}}..."
+        />
+
+        {data.items.length === 0 ? (
+          <EmptyState
+            title={
+              debouncedSearch
+                ? "Nenhum {{camelCase entityName}} encontrado"
+                : "Nenhum {{camelCase entityName}} cadastrado"
+            }
+            description={
+              debouncedSearch
+                ? "Tente alterar os termos da busca."
+                : "Cadastre o primeiro {{camelCase entityName}} para começar."
+            }
+            action={
+              !debouncedSearch ? (
+                <Button type="button" onClick={handleCreate}>
+                  <Plus />
+                  Novo {{camelCase entityName}}
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <div className="relative">
+            {{camelCase entityName}}sQuery.isFetching ? (
+              <div className="absolute right-2 top-2 z-10 flex items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+                <span
+                  className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+                  aria-hidden="true"
+                />
+                Atualizando...
+              </div>
+            ) : null}
+
+            <div
+              className={
+                {{camelCase entityName}}sQuery.isFetching
+                  ? "opacity-60 transition-opacity"
+                  : "transition-opacity"
+              }
+            >
+              <DataTable<{{pascalCase entityName}}ListItem>
+                columns={columns}
+                data={data.items}
+                sorting={sorting}
+                onSortingChange={setSorting}
+                pagination={pagination}
+                onPaginationChange={setPagination}
+                rowCount={data.total}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <CrudFormDialog
+        open={formOpen}
+        onOpenChange={(open) => {
+          if (isFormPending && !open) {
+            return;
+          }
+
+          setFormOpen(open);
+
+          if (!open) {
+            setEditing{{pascalCase entityName}}(undefined);
+          }
+        }}
+        title={
+          editing{{pascalCase entityName}}
+            ? "Editar {{camelCase entityName}}"
+            : "Novo {{camelCase entityName}}"
+        }
+        description={
+          editing{{pascalCase entityName}}
+            ? "Atualize os dados."
+            : "Cadastre um novo registro."
+        }
+      >
+        {formOpen ? (
+          <{{pascalCase entityName}}Form
+            key={editing{{pascalCase entityName}}?.id ?? "new"}
+            {{camelCase entityName}}={editing{{pascalCase entityName}}}
+            isPending={isFormPending}
+            onSubmit={handleFormSubmit}
+            onCancel={() => {
+              setFormOpen(false);
+              setEditing{{pascalCase entityName}}(undefined);
+            }}
+          />
+        ) : null}
+      </CrudFormDialog>
+
+      <CrudConfirmDialog
+        open={deleting{{pascalCase entityName}} !== undefined}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleting{{pascalCase entityName}}(undefined);
+          }
+        }}
+        title="Excluir {{camelCase entityName}}?"
+        description={
+          deleting{{pascalCase entityName}}
+            ? `O registro "${deleting{{pascalCase entityName}}.name}" será excluído permanentemente.`
+            : "Esta operação não poderá ser desfeita."
+        }
+        confirmLabel={
+          deleteMutation.isPending ? "Excluindo..." : "Excluir"
+        }
+        confirmDisabled={deleteMutation.isPending}
+        onConfirm={handleDelete}
+      />
+    </>
+  );
+}
+
+interface {{pascalCase entityName}}HeaderProps {
+  onCreate: () => void;
+}
+
+function {{pascalCase entityName}}Header({
+  onCreate,
+}: {{pascalCase entityName}}HeaderProps) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <p className="text-sm text-muted-foreground">
+          Gerencie os {{camelCase pluralName}} disponíveis.
+        </p>
+      </div>
+
+      <Button type="button" onClick={onCreate}>
+        <Plus />
+        Novo {{camelCase entityName}}
+      </Button>
+    </div>
+  );
+}

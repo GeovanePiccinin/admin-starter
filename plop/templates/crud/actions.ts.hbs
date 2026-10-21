@@ -1,0 +1,139 @@
+"use server";
+
+import { auth } from "@/auth";
+
+import { logger } from "@/lib/logger/logger";
+
+import {
+  create{{pascalCase entityName}}Schema,
+  delete{{pascalCase entityName}}Schema,
+  update{{pascalCase entityName}}Schema,
+} from "./{{kebabCase entityName}}.schema";
+
+import {
+  create{{pascalCase entityName}},
+  delete{{pascalCase entityName}},
+  find{{pascalCase pluralName}},
+  update{{pascalCase entityName}},
+} from "./{{kebabCase entityName}}.repository";
+
+import {
+  {{camelCase entityName}}ListQuerySchema,
+  type {{pascalCase entityName}}ListResult,
+} from "./{{kebabCase entityName}}.query";
+
+async function getTenantId(): Promise<string> {
+  const session = await auth();
+
+  const tenantId = session?.user?.tenantId;
+
+  if (!tenantId) {
+    throw new Error("Usuário não autenticado.");
+  }
+
+  return tenantId;
+}
+
+export async function get{{pascalCase pluralName}}(
+  input: unknown,
+): Promise<{{pascalCase entityName}}ListResult> {
+  const tenantId = await getTenantId();
+
+  const query = {{camelCase entityName}}ListQuerySchema.parse(input);
+
+  return find{{pascalCase pluralName}}(tenantId, query);
+}
+
+export async function create{{pascalCase entityName}}Action(
+  input: unknown,
+): Promise<void> {
+  const tenantId = await getTenantId();
+  const data = create{{pascalCase entityName}}Schema.parse(input);
+
+  try {
+    await create{{pascalCase entityName}}(tenantId, data);
+
+    logger.info(
+      {
+        operation: "{{camelCase entityName}}.create",
+        tenantId,
+      },
+      "{{pascalCase entityName}} created",
+    );
+  } catch (error: unknown) {
+    logger.error(
+      {
+        operation: "{{camelCase entityName}}.create",
+        tenantId,
+        error,
+      },
+      "Failed to create {{camelCase entityName}}",
+    );
+
+    throw error;
+  }
+}
+
+export async function update{{pascalCase entityName}}Action(
+  input: unknown,
+): Promise<void> {
+  const tenantId = await getTenantId();
+  const data = update{{pascalCase entityName}}Schema.parse(input);
+
+  try {
+    await update{{pascalCase entityName}}(tenantId, data);
+
+    logger.info(
+      {
+        operation: "{{camelCase entityName}}.update",
+        tenantId,
+        {{camelCase entityName}}Id: data.id,
+      },
+      "{{pascalCase entityName}} updated",
+    );
+  } catch (error: unknown) {
+    logger.error(
+      {
+        operation: "{{camelCase entityName}}.update",
+        tenantId,
+        {{camelCase entityName}}Id: data.id,
+        error,
+      },
+      "Failed to update {{camelCase entityName}}",
+    );
+
+    throw error;
+  }
+}
+
+export async function delete{{pascalCase entityName}}Action(
+  input: unknown,
+): Promise<void> {
+  const tenantId = await getTenantId();
+  const data = delete{{pascalCase entityName}}Schema.parse(input);
+
+  try {
+    await delete{{pascalCase entityName}}(tenantId, data.id);
+
+    logger.info(
+      {
+        operation: "{{camelCase entityName}}.delete",
+        tenantId,
+        {{camelCase entityName}}Id: data.id,
+      },
+      "{{pascalCase entityName}} deleted",
+    );
+  } catch (error: unknown) {
+    logger.error(
+      {
+        operation: "{{camelCase entityName}}.delete",
+        tenantId,
+        {{camelCase entityName}}Id: data.id,
+        error,
+      },
+      "Failed to delete {{camelCase entityName}}",
+    );
+
+    throw error;
+  }
+}

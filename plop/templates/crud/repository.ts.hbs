@@ -1,0 +1,139 @@
+import { Prisma } from "@/generated/prisma/client";
+
+import { prisma } from "@/lib/db/prisma";
+
+import type {
+  Create{{pascalCase entityName}}Data,
+  Update{{pascalCase entityName}}Data,
+} from "./{{kebabCase entityName}}.schema";
+
+import type {
+  {{pascalCase entityName}}ListItem,
+  {{pascalCase entityName}}ListQuery,
+  {{pascalCase entityName}}ListResult,
+} from "./{{kebabCase entityName}}.query";
+
+const {{camelCase entityName}}Select = {
+  id: true,
+  name: true,
+  description: true,
+  duration: true,
+  price: true,
+  active: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.{{pascalCase entityName}}Select;
+
+export async function find{{pascalCase pluralName}}(
+  tenantId: string,
+  query: {{pascalCase entityName}}ListQuery,
+): Promise<{{pascalCase entityName}}ListResult> {
+  const { search, page, pageSize, sortBy, sortDirection } = query;
+
+  const where: Prisma.{{pascalCase entityName}}WhereInput = {
+    tenantId,
+
+    ...(search
+      ? {
+          name: {
+            contains: search,
+            mode: "insensitive",
+          },
+        }
+      : {}),
+  };
+
+  const orderBy: Prisma.{{pascalCase entityName}}OrderByWithRelationInput = {
+    [sortBy]: sortDirection,
+  };
+
+  const [{{camelCase pluralName}}, total] = await prisma.$transaction([
+    prisma.{{camelCase pluralName}}.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {{camelCase entityName}}Select,
+    }),
+
+    prisma.{{camelCase pluralName}}.count({
+      where,
+    }),
+  ]);
+
+  const items: {{pascalCase entityName}}ListItem[] =
+    {{camelCase pluralName}}.map(({{camelCase entityName}}) => ({
+      id: {{camelCase entityName}}.id,
+      name: {{camelCase entityName}}.name,
+      description: {{camelCase entityName}}.description,
+      duration: {{camelCase entityName}}.duration,
+      price: {{camelCase entityName}}.price.toString(),
+      active: {{camelCase entityName}}.active,
+      createdAt: {{camelCase entityName}}.createdAt,
+      updatedAt: {{camelCase entityName}}.updatedAt,
+    }));
+
+  return {
+    items,
+    total,
+    page,
+    pageSize,
+    pageCount: Math.ceil(total / pageSize),
+  };
+}
+
+export async function create{{pascalCase entityName}}(
+  tenantId: string,
+  input: Create{{pascalCase entityName}}Data,
+): Promise<void> {
+  await prisma.{{camelCase pluralName}}.create({
+    data: {
+      tenantId,
+      name: input.name,
+      description: input.description || null,
+      duration: input.duration,
+      price: input.price,
+      active: input.active,
+    },
+  });
+}
+
+export async function update{{pascalCase entityName}}(
+  tenantId: string,
+  input: Update{{pascalCase entityName}}Data,
+): Promise<void> {
+  const result = await prisma.{{camelCase pluralName}}.updateMany({
+    where: {
+      id: input.id,
+      tenantId,
+    },
+
+    data: {
+      name: input.name,
+      description: input.description || null,
+      duration: input.duration,
+      price: input.price,
+      active: input.active,
+    },
+  });
+
+  if (result.count === 0) {
+    throw new Error("{{pascalCase entityName}} não encontrado.");
+  }
+}
+
+export async function delete{{pascalCase entityName}}(
+  tenantId: string,
+  {{camelCase entityName}}Id: string,
+): Promise<void> {
+  const result = await prisma.{{camelCase pluralName}}.deleteMany({
+    where: {
+      id: {{camelCase entityName}}Id,
+      tenantId,
+    },
+  });
+
+  if (result.count === 0) {
+    throw new Error("{{pascalCase entityName}} não encontrado.");
+  }
+}
