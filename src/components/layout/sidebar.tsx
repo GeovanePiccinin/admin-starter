@@ -66,7 +66,7 @@ export function Sidebar() {
   return (
     <aside
       className={[
-        "flex min-h-screen flex-col border-r",
+        "fixed top-0 left-0 z-40 h-screen flex flex-col border-r overflow-y-auto",
         "bg-sidebar text-sidebar-foreground",
         "transition-[width] duration-200",
         collapsed ? "w-16" : "w-64",

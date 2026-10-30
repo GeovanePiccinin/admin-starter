@@ -4,6 +4,10 @@ import {
   CalendarDays,
   LayoutDashboard,
   Users,
+  HardHat,
+  ClipboardCheck,
+  FileText,
+  CreditCard,
 } from "lucide-react";
 
 export interface NavigationItem {
@@ -24,13 +28,33 @@ export const navigationItems: NavigationItem[] = [
     icon: BriefcaseBusiness,
   },
   {
-    label: "Usuários",
-    href: "/users",
+    label: "Clientes",
+    href: "/clients",
     icon: Users,
+  },
+  {
+    label: "Profissionais",
+    href: "/professionals",
+    icon: HardHat,
   },
   {
     label: "Agendamentos",
     href: "/appointments",
     icon: CalendarDays,
+  },
+  {
+    label: "Atendimentos",
+    href: "/attendances",
+    icon: ClipboardCheck,
+  },
+  {
+    label: "Fichas de clientes",
+    href: "/client-records",
+    icon: FileText,
+  },
+  {
+    label: "Pagamentos",
+    href: "/payments",
+    icon: CreditCard,
   },
 ];
