@@ -1,20 +1,22 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-
-import { Form } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Form } from "@/components/ui/form";
+{{#if hasInputFields}}
+import { Input } from "@/components/ui/input";
+{{/if}}
+{{#if hasLongTextFields}}
+import { Textarea } from "@/components/ui/textarea";
+{{/if}}
 
 import {
   create{{pascalCase entityName}}Schema,
   type Create{{pascalCase entityName}}Data,
   type Create{{pascalCase entityName}}Input,
 } from "./{{kebabCase entityName}}.schema";
-
 import type { {{pascalCase entityName}}ListItem } from "./{{kebabCase entityName}}.query";
 
 interface {{pascalCase entityName}}FormProps {
@@ -36,122 +38,89 @@ export function {{pascalCase entityName}}Form({
     Create{{pascalCase entityName}}Data
   >({
     resolver: zodResolver(create{{pascalCase entityName}}Schema),
-
     defaultValues: {
-      name: {{camelCase entityName}}?.name ?? "",
-      description: {{camelCase entityName}}?.description ?? "",
-      duration: {{camelCase entityName}}
-        ? String({{camelCase entityName}}.duration)
-        : "30",
-      price: {{camelCase entityName}}?.price ?? "0",
-      active: {{camelCase entityName}}?.active ?? true,
+{{#each fields}}
+      {{name}}: {{{formDefaultExpression}}},
+{{/each}}
     },
   });
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-2">
-          <label htmlFor="{{kebabCase entityName}}-name" className="text-sm font-medium">
-            Nome
-          </label>
-
-          <Input
-            id="{{kebabCase entityName}}-name"
-            placeholder="Informe o nome..."
-            disabled={isPending}
-            {...form.register("name")}
-          />
-
-          {form.formState.errors.name ? (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.name.message}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="space-y-2">
-          <label
-            htmlFor="{{kebabCase entityName}}-description"
-            className="text-sm font-medium"
-          >
-            Descrição
-          </label>
-
-          <Textarea
-            id="{{kebabCase entityName}}-description"
-            placeholder="Descreva..."
-            disabled={isPending}
-            {...form.register("description")}
-          />
-
-          {form.formState.errors.description ? (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.description.message}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="space-y-2">
-          <label
-            htmlFor="{{kebabCase entityName}}-duration"
-            className="text-sm font-medium"
-          >
-            Duração (minutos)
-          </label>
-
-          <Input
-            id="{{kebabCase entityName}}-duration"
-            type="number"
-            disabled={isPending}
-            {...form.register("duration")}
-          />
-
-          {form.formState.errors.duration ? (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.duration.message}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="space-y-2">
-          <label
-            htmlFor="{{kebabCase entityName}}-price"
-            className="text-sm font-medium"
-          >
-            Preço
-          </label>
-
-          <Input
-            id="{{kebabCase entityName}}-price"
-            type="number"
-            disabled={isPending}
-            {...form.register("price")}
-          />
-
-          {form.formState.errors.price ? (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.price.message}
-            </p>
-          ) : null}
-        </div>
-
+{{#each fields}}
+{{#if isBoolean}}
         <div className="flex items-center gap-2">
           <input
-            id="{{kebabCase entityName}}-active"
+            id="{{kebabCase ../entityName}}-{{kebabCase name}}"
             type="checkbox"
             disabled={isPending}
-            {...form.register("active")}
+            {...form.register("{{name}}")}
           />
-
           <label
-            htmlFor="{{kebabCase entityName}}-active"
+            htmlFor="{{kebabCase ../entityName}}-{{kebabCase name}}"
             className="text-sm font-medium"
           >
-            Ativo
+            {{label}}
           </label>
         </div>
-
+{{else if isEnum}}
+        <div className="space-y-2">
+          <label
+            htmlFor="{{kebabCase ../entityName}}-{{kebabCase name}}"
+            className="text-sm font-medium"
+          >
+            {{label}}
+          </label>
+          <select
+            id="{{kebabCase ../entityName}}-{{kebabCase name}}"
+            className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
+            disabled={isPending}
+            {...form.register("{{name}}")}
+          >
+{{#if optional}}
+            <option value="">Selecione...</option>
+{{/if}}
+{{#each enumValues}}
+            <option value="{{this}}">{{this}}</option>
+{{/each}}
+          </select>
+          {form.formState.errors.{{name}} ? (
+            <p className="text-sm text-destructive">
+              {form.formState.errors.{{name}}.message}
+            </p>
+          ) : null}
+        </div>
+{{else}}
+        <div className="space-y-2">
+          <label
+            htmlFor="{{kebabCase ../entityName}}-{{kebabCase name}}"
+            className="text-sm font-medium"
+          >
+            {{label}}
+          </label>
+{{#if isLongText}}
+          <Textarea
+            id="{{kebabCase ../entityName}}-{{kebabCase name}}"
+            disabled={isPending}
+            {...form.register("{{name}}")}
+          />
+{{else}}
+          <Input
+            id="{{kebabCase ../entityName}}-{{kebabCase name}}"
+            type="{{inputType}}"
+            disabled={isPending}
+            {...form.register("{{name}}")}
+          />
+{{/if}}
+          {form.formState.errors.{{name}} ? (
+            <p className="text-sm text-destructive">
+              {form.formState.errors.{{name}}.message}
+            </p>
+          ) : null}
+        </div>
+{{/if}}
+{{/each}}
         <div className="flex justify-end gap-2 pt-2">
           <Button
             type="button"
@@ -161,7 +130,6 @@ export function {{pascalCase entityName}}Form({
           >
             Cancelar
           </Button>
-
           <Button type="submit" disabled={isPending}>
             {isPending
               ? "Salvando..."
@@ -174,3 +142,11 @@ export function {{pascalCase entityName}}Form({
     </Form>
   );
 }
+{{#if hasDateTimeFields}}
+
+function formatDateTimeLocal(value: Date): string {
+  const localOffset = value.getTimezoneOffset() * 60_000;
+
+  return new Date(value.getTime() - localOffset).toISOString().slice(0, 16);
+}
+{{/if}}

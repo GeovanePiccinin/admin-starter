@@ -6,7 +6,6 @@ import type {
   Create{{pascalCase entityName}}Data,
   Update{{pascalCase entityName}}Data,
 } from "./{{kebabCase entityName}}.schema";
-
 import type {
   {{pascalCase entityName}}ListItem,
   {{pascalCase entityName}}ListQuery,
@@ -15,13 +14,9 @@ import type {
 
 const {{camelCase entityName}}Select = {
   id: true,
-  name: true,
-  description: true,
-  duration: true,
-  price: true,
-  active: true,
-  createdAt: true,
-  updatedAt: true,
+{{#each fields}}
+  {{name}}: true,
+{{/each}}
 } satisfies Prisma.{{pascalCase entityName}}Select;
 
 export async function find{{pascalCase pluralName}}(
@@ -29,49 +24,46 @@ export async function find{{pascalCase pluralName}}(
   query: {{pascalCase entityName}}ListQuery,
 ): Promise<{{pascalCase entityName}}ListResult> {
   const { search, page, pageSize, sortBy, sortDirection } = query;
-
   const where: Prisma.{{pascalCase entityName}}WhereInput = {
     tenantId,
-
+{{#if hasSearchableFields}}
     ...(search
       ? {
-          name: {
-            contains: search,
-            mode: "insensitive",
-          },
+          OR: [
+{{#each searchableFields}}
+            {
+              {{name}}: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+{{/each}}
+          ],
         }
       : {}),
+{{/if}}
   };
-
   const orderBy: Prisma.{{pascalCase entityName}}OrderByWithRelationInput = {
     [sortBy]: sortDirection,
   };
 
-  const [{{camelCase pluralName}}, total] = await prisma.$transaction([
-    prisma.{{camelCase pluralName}}.findMany({
+  const [records, total] = await prisma.$transaction([
+    prisma.{{camelCase entityName}}.findMany({
       where,
       orderBy,
       skip: (page - 1) * pageSize,
       take: pageSize,
       select: {{camelCase entityName}}Select,
     }),
-
-    prisma.{{camelCase pluralName}}.count({
-      where,
-    }),
+    prisma.{{camelCase entityName}}.count({ where }),
   ]);
 
-  const items: {{pascalCase entityName}}ListItem[] =
-    {{camelCase pluralName}}.map(({{camelCase entityName}}) => ({
-      id: {{camelCase entityName}}.id,
-      name: {{camelCase entityName}}.name,
-      description: {{camelCase entityName}}.description,
-      duration: {{camelCase entityName}}.duration,
-      price: {{camelCase entityName}}.price.toString(),
-      active: {{camelCase entityName}}.active,
-      createdAt: {{camelCase entityName}}.createdAt,
-      updatedAt: {{camelCase entityName}}.updatedAt,
-    }));
+  const items: {{pascalCase entityName}}ListItem[] = records.map((record) => ({
+    id: record.id,
+{{#each fields}}
+    {{name}}: {{{mapExpression}}},
+{{/each}}
+  }));
 
   return {
     items,
@@ -86,14 +78,12 @@ export async function create{{pascalCase entityName}}(
   tenantId: string,
   input: Create{{pascalCase entityName}}Data,
 ): Promise<void> {
-  await prisma.{{camelCase pluralName}}.create({
+  await prisma.{{camelCase entityName}}.create({
     data: {
       tenantId,
-      name: input.name,
-      description: input.description || null,
-      duration: input.duration,
-      price: input.price,
-      active: input.active,
+{{#each fields}}
+      {{name}}: {{{writeExpression}}},
+{{/each}}
     },
   });
 }
@@ -102,23 +92,20 @@ export async function update{{pascalCase entityName}}(
   tenantId: string,
   input: Update{{pascalCase entityName}}Data,
 ): Promise<void> {
-  const result = await prisma.{{camelCase pluralName}}.updateMany({
+  const result = await prisma.{{camelCase entityName}}.updateMany({
     where: {
       id: input.id,
       tenantId,
     },
-
     data: {
-      name: input.name,
-      description: input.description || null,
-      duration: input.duration,
-      price: input.price,
-      active: input.active,
+{{#each fields}}
+      {{name}}: {{{writeExpression}}},
+{{/each}}
     },
   });
 
   if (result.count === 0) {
-    throw new Error("{{pascalCase entityName}} não encontrado.");
+    throw new Error({{{messages.notFound}}});
   }
 }
 
@@ -126,7 +113,7 @@ export async function delete{{pascalCase entityName}}(
   tenantId: string,
   {{camelCase entityName}}Id: string,
 ): Promise<void> {
-  const result = await prisma.{{camelCase pluralName}}.deleteMany({
+  const result = await prisma.{{camelCase entityName}}.deleteMany({
     where: {
       id: {{camelCase entityName}}Id,
       tenantId,
@@ -134,6 +121,6 @@ export async function delete{{pascalCase entityName}}(
   });
 
   if (result.count === 0) {
-    throw new Error("{{pascalCase entityName}} não encontrado.");
+    throw new Error({{{messages.notFound}}});
   }
 }

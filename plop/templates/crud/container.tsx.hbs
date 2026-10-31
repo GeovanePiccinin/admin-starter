@@ -2,16 +2,13 @@
 
 import { useState } from "react";
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SortingState } from "@tanstack/react-table";
-
 import { Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
+import { CrudConfirmDialog } from "@/components/crud/crud-confirm-dialog";
+import { CrudFormDialog } from "@/components/crud/crud-form-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { createAppColumnHelper } from "@/components/data-table/table";
 import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
@@ -19,13 +16,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { SearchInput } from "@/components/search-input/search-input";
 import { Button } from "@/components/ui/button";
-
 import { useListControls } from "@/hooks/use-list-controls";
-
-import { toast } from "sonner";
-
-import { CrudConfirmDialog } from "@/components/crud/crud-confirm-dialog";
-import { CrudFormDialog } from "@/components/crud/crud-form-dialog";
 
 import {
   create{{pascalCase entityName}}Action,
@@ -33,53 +24,37 @@ import {
   get{{pascalCase pluralName}},
   update{{pascalCase entityName}}Action,
 } from "./{{kebabCase entityName}}.actions";
-
+import { {{pascalCase entityName}}Form } from "./{{kebabCase entityName}}-form";
 import type { Create{{pascalCase entityName}}Data } from "./{{kebabCase entityName}}.schema";
-
 import type {
   {{pascalCase entityName}}ListItem,
   {{pascalCase entityName}}ListQuery,
 } from "./{{kebabCase entityName}}.query";
 
-import { {{pascalCase entityName}}Form } from "./{{kebabCase entityName}}-form";
-
-type {{pascalCase entityName}}SortField =
-  | "name"
-  | "duration"
-  | "price"
-  | "active"
-  | "createdAt";
+type {{pascalCase entityName}}SortField = {{pascalCase entityName}}ListQuery["sortBy"];
 
 const PAGE_SIZE = 10;
-
 const allowedSortFields: {{pascalCase entityName}}SortField[] = [
-  "name",
-  "duration",
-  "price",
-  "active",
-  "createdAt",
+  "id",
+{{#each sortableFields}}
+  "{{this}}",
+{{/each}}
 ];
 
 function getSortingQuery(
   sorting: SortingState,
-): Pick<
-  {{pascalCase entityName}}ListQuery,
-  "sortBy" | "sortDirection"
-> {
+): Pick<{{pascalCase entityName}}ListQuery, "sortBy" | "sortDirection"> {
   const firstSort = sorting[0];
 
   if (!firstSort) {
-    return {
-      sortBy: "name",
-      sortDirection: "asc",
-    };
+    return { sortBy: "{{defaultSortField}}", sortDirection: "asc" };
   }
 
   const sortBy = allowedSortFields.includes(
     firstSort.id as {{pascalCase entityName}}SortField,
   )
     ? (firstSort.id as {{pascalCase entityName}}SortField)
-    : "name";
+    : "{{defaultSortField}}";
 
   return {
     sortBy,
@@ -89,7 +64,6 @@ function getSortingQuery(
 
 export function {{pascalCase entityName}}Container() {
   const queryClient = useQueryClient();
-
   const {
     search,
     debouncedSearch,
@@ -102,19 +76,14 @@ export function {{pascalCase entityName}}Container() {
     initialPageSize: PAGE_SIZE,
     debounceDelay: 400,
   });
-
   const [formOpen, setFormOpen] = useState(false);
-
-  const [editing{{pascalCase entityName}}, setEditing{{pascalCase entityName}}] =
-    useState<{{pascalCase entityName}}ListItem | undefined>();
-
-  const [
-    deleting{{pascalCase entityName}},
-    setDeleting{{pascalCase entityName}},
-  ] = useState<{{pascalCase entityName}}ListItem | undefined>();
-
+  const [editingRecord, setEditingRecord] = useState<
+    {{pascalCase entityName}}ListItem | undefined
+  >();
+  const [deletingRecord, setDeletingRecord] = useState<
+    {{pascalCase entityName}}ListItem | undefined
+  >();
   const sortingQuery = getSortingQuery(sorting);
-
   const query: {{pascalCase entityName}}ListQuery = {
     search: debouncedSearch,
     page: pagination.pageIndex + 1,
@@ -122,111 +91,77 @@ export function {{pascalCase entityName}}Container() {
     sortBy: sortingQuery.sortBy,
     sortDirection: sortingQuery.sortDirection,
   };
-
-  const {{camelCase entityName}}sQuery = useQuery({
+  const recordsQuery = useQuery({
     queryKey: [
-      "{{camelCase pluralName}}",
+      "{{pluralCamelCase}}",
       query.search,
       query.page,
       query.pageSize,
       query.sortBy,
       query.sortDirection,
     ],
-
     queryFn: () => get{{pascalCase pluralName}}(query),
-
     placeholderData: (previousData) => previousData,
   });
-
   const createMutation = useMutation({
     mutationFn: create{{pascalCase entityName}}Action,
-
     onSuccess: async () => {
-      toast.success("{{pascalCase entityName}} cadastrado com sucesso.");
-
+      toast.success({{{messages.createSuccess}}});
       setFormOpen(false);
-
-      await queryClient.invalidateQueries({
-        queryKey: ["{{camelCase pluralName}}"],
-      });
+      await queryClient.invalidateQueries({ queryKey: ["{{pluralCamelCase}}"] });
     },
-
     onError: (error) => {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Não foi possível cadastrar o {{camelCase entityName}}.",
+          : {{{messages.createError}}},
       );
     },
   });
-
   const updateMutation = useMutation({
     mutationFn: update{{pascalCase entityName}}Action,
-
     onSuccess: async () => {
-      toast.success("{{pascalCase entityName}} atualizado com sucesso.");
-
+      toast.success({{{messages.updateSuccess}}});
       setFormOpen(false);
-      setEditing{{pascalCase entityName}}(undefined);
-
-      await queryClient.invalidateQueries({
-        queryKey: ["{{camelCase pluralName}}"],
-      });
+      setEditingRecord(undefined);
+      await queryClient.invalidateQueries({ queryKey: ["{{pluralCamelCase}}"] });
     },
-
     onError: (error) => {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Não foi possível atualizar o {{camelCase entityName}}.",
+          : {{{messages.updateError}}},
       );
     },
   });
-
   const deleteMutation = useMutation({
     mutationFn: delete{{pascalCase entityName}}Action,
-
     onSuccess: async () => {
-      toast.success("{{pascalCase entityName}} excluído com sucesso.");
+      toast.success({{{messages.deleteSuccess}}});
+      setDeletingRecord(undefined);
 
-      setDeleting{{pascalCase entityName}}(undefined);
+      if (recordsQuery.data?.items.length === 1 && pagination.pageIndex > 0) {
+        setPagination((previous) => ({
+          ...previous,
+          pageIndex: previous.pageIndex - 1,
+        }));
+      }
 
-      await queryClient.invalidateQueries({
-        queryKey: ["{{camelCase pluralName}}"],
-      });
+      await queryClient.invalidateQueries({ queryKey: ["{{pluralCamelCase}}"] });
     },
-
     onError: (error) => {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Não foi possível excluir o {{camelCase entityName}}.",
+          : {{{messages.deleteError}}},
       );
     },
   });
-
-  const isFormPending =
-    createMutation.isPending || updateMutation.isPending;
-
-  function handleCreate() {
-    setEditing{{pascalCase entityName}}(undefined);
-    setFormOpen(true);
-  }
-
-  function handleEdit(
-    {{camelCase entityName}}: {{pascalCase entityName}}ListItem,
-  ) {
-    setEditing{{pascalCase entityName}}({{camelCase entityName}});
-    setFormOpen(true);
-  }
+  const isFormPending = createMutation.isPending || updateMutation.isPending;
 
   function handleFormSubmit(data: Create{{pascalCase entityName}}Data) {
-    if (editing{{pascalCase entityName}}) {
-      updateMutation.mutate({
-        id: editing{{pascalCase entityName}}.id,
-        ...data,
-      });
-
+    if (editingRecord) {
+      updateMutation.mutate({ id: editingRecord.id, ...data });
       return;
     }
 
@@ -234,76 +169,58 @@ export function {{pascalCase entityName}}Container() {
   }
 
   function handleDelete() {
-    if (!deleting{{pascalCase entityName}}) {
-      return;
+    if (deletingRecord) {
+      deleteMutation.mutate({ id: deletingRecord.id });
     }
-
-    deleteMutation.mutate({
-      id: deleting{{pascalCase entityName}}.id,
-    });
   }
 
-  const columnHelper =
-    createAppColumnHelper<{{pascalCase entityName}}ListItem>();
-
+  const columnHelper = createAppColumnHelper<{{pascalCase entityName}}ListItem>();
   const columns = columnHelper.columns([
-    columnHelper.accessor("name", {
-      header: "Nome",
+{{#each fields}}
+    columnHelper.accessor("{{name}}", {
+      header: "{{label}}",
       enableSorting: true,
+      cell: ({ getValue }) => {
+        const value = getValue();
+{{#if isBoolean}}
+        return value ? "Sim" : "Não";
+{{else if isDateTime}}
+        return value
+          ? new Intl.DateTimeFormat("pt-BR", {
+              dateStyle: "short",
+              timeStyle: "short",
+            }).format(value)
+          : "—";
+{{else}}
+        return value == null || value === "" ? "—" : String(value);
+{{/if}}
+      },
     }),
-
-    columnHelper.accessor("duration", {
-      header: "Duração",
-      enableSorting: true,
-
-      cell: ({ getValue }) => `${getValue()} min`,
-    }),
-
-    columnHelper.accessor("price", {
-      header: "Preço",
-      enableSorting: true,
-
-      cell: ({ getValue }) =>
-        new Intl.NumberFormat("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        }).format(Number(getValue())),
-    }),
-
-    columnHelper.accessor("active", {
-      header: "Status",
-      enableSorting: true,
-
-      cell: ({ getValue }) => (getValue() ? "Ativo" : "Inativo"),
-    }),
-
+{{/each}}
     columnHelper.display({
       id: "actions",
-
       header: "Ações",
-
       enableSorting: false,
-
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            onClick={() => handleEdit(row.original)}
-            aria-label={`Editar ${row.original.name}`}
+            onClick={() => {
+              setEditingRecord(row.original);
+              setFormOpen(true);
+            }}
+            aria-label={`Editar ${row.original.id}`}
           >
             <Pencil className="size-4" />
           </Button>
-
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            onClick={() =>
-              setDeleting{{pascalCase entityName}}(row.original)
-            }
-            aria-label={`Excluir ${row.original.name}`}
+            onClick={() => setDeletingRecord(row.original)}
+            aria-label={`Excluir ${row.original.id}`}
           >
             <Trash2 className="size-4" />
           </Button>
@@ -312,42 +229,47 @@ export function {{pascalCase entityName}}Container() {
     }),
   ]);
 
-  if (
-    {{camelCase entityName}}sQuery.isPending &&
-    !{{camelCase entityName}}sQuery.data
-  ) {
+  if (recordsQuery.isPending && !recordsQuery.data) {
     return (
       <div className="space-y-4">
-        <{{pascalCase entityName}}Header onCreate={handleCreate} />
-
+        <RecordHeader
+          pluralLabel="{{pluralLabel}}"
+          singularLabel="{{singularLabel}}"
+          onCreate={() => {
+            setEditingRecord(undefined);
+            setFormOpen(true);
+          }}
+        />
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Pesquisar {{camelCase pluralName}}..."
+          placeholder="Pesquisar {{pluralLabel}}..."
         />
-
-        <DataTableSkeleton columns={5} rows={PAGE_SIZE} />
+        <DataTableSkeleton columns={{{tableColumnCount}}} rows={PAGE_SIZE} />
       </div>
     );
   }
 
-  if (
-    {{camelCase entityName}}sQuery.isError &&
-    !{{camelCase entityName}}sQuery.data
-  ) {
+  if (recordsQuery.isError && !recordsQuery.data) {
     return (
       <div className="space-y-4">
-        <{{pascalCase entityName}}Header onCreate={handleCreate} />
-
+        <RecordHeader
+          pluralLabel="{{pluralLabel}}"
+          singularLabel="{{singularLabel}}"
+          onCreate={() => {
+            setEditingRecord(undefined);
+            setFormOpen(true);
+          }}
+        />
         <ErrorState
-          title="Não foi possível carregar os {{camelCase pluralName}}."
+          title="Não foi possível carregar {{pluralLabel}}."
           description="Tente novamente. Se o problema persistir, verifique sua conexão."
           action={
             <Button
               type="button"
               variant="outline"
               onClick={() => {
-                void {{camelCase entityName}}sQuery.refetch();
+                void recordsQuery.refetch();
               }}
             >
               Tentar novamente
@@ -358,7 +280,7 @@ export function {{pascalCase entityName}}Container() {
     );
   }
 
-  const data = {{camelCase entityName}}sQuery.data;
+  const data = recordsQuery.data;
 
   if (!data) {
     return null;
@@ -367,68 +289,58 @@ export function {{pascalCase entityName}}Container() {
   return (
     <>
       <div className="space-y-4">
-        <{{pascalCase entityName}}Header onCreate={handleCreate} />
-
+        <RecordHeader
+          pluralLabel="{{pluralLabel}}"
+          singularLabel="{{singularLabel}}"
+          onCreate={() => {
+            setEditingRecord(undefined);
+            setFormOpen(true);
+          }}
+        />
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Pesquisar {{camelCase pluralName}}..."
+          placeholder="Pesquisar {{pluralLabel}}..."
         />
-
         {data.items.length === 0 ? (
           <EmptyState
             title={
               debouncedSearch
-                ? "Nenhum {{camelCase entityName}} encontrado"
-                : "Nenhum {{camelCase entityName}} cadastrado"
+                ? "Nenhum {{singularLabel}} encontrado"
+                : "Nenhum {{singularLabel}} cadastrado"
             }
             description={
               debouncedSearch
                 ? "Tente alterar os termos da busca."
-                : "Cadastre o primeiro {{camelCase entityName}} para começar."
+                : "Cadastre o primeiro registro para começar."
             }
             action={
               !debouncedSearch ? (
-                <Button type="button" onClick={handleCreate}>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setEditingRecord(undefined);
+                    setFormOpen(true);
+                  }}
+                >
                   <Plus />
-                  Novo {{camelCase entityName}}
+                  Novo {{singularLabel}}
                 </Button>
               ) : undefined
             }
           />
         ) : (
-          <div className="relative">
-            {{camelCase entityName}}sQuery.isFetching ? (
-              <div className="absolute right-2 top-2 z-10 flex items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
-                <span
-                  className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent"
-                  aria-hidden="true"
-                />
-                Atualizando...
-              </div>
-            ) : null}
-
-            <div
-              className={
-                {{camelCase entityName}}sQuery.isFetching
-                  ? "opacity-60 transition-opacity"
-                  : "transition-opacity"
-              }
-            >
-              <DataTable<{{pascalCase entityName}}ListItem>
-                columns={columns}
-                data={data.items}
-                sorting={sorting}
-                onSortingChange={setSorting}
-                pagination={pagination}
-                onPaginationChange={setPagination}
-                rowCount={data.total}
-              />
-            </div>
-          </div>
+          <DataTable<{{pascalCase entityName}}ListItem>
+            columns={columns}
+            data={data.items}
+            sorting={sorting}
+            onSortingChange={setSorting}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            rowCount={data.total}
+          />
         )}
       </div>
-
       <CrudFormDialog
         open={formOpen}
         onOpenChange={(open) => {
@@ -437,52 +349,44 @@ export function {{pascalCase entityName}}Container() {
           }
 
           setFormOpen(open);
-
           if (!open) {
-            setEditing{{pascalCase entityName}}(undefined);
+            setEditingRecord(undefined);
           }
         }}
-        title={
-          editing{{pascalCase entityName}}
-            ? "Editar {{camelCase entityName}}"
-            : "Novo {{camelCase entityName}}"
-        }
+        title={editingRecord ? "Editar {{singularLabel}}" : "Novo {{singularLabel}}"}
         description={
-          editing{{pascalCase entityName}}
-            ? "Atualize os dados."
+          editingRecord
+            ? "Atualize os dados do registro."
             : "Cadastre um novo registro."
         }
       >
         {formOpen ? (
           <{{pascalCase entityName}}Form
-            key={editing{{pascalCase entityName}}?.id ?? "new"}
-            {{camelCase entityName}}={editing{{pascalCase entityName}}}
+            key={editingRecord?.id ?? "new"}
+            {{camelCase entityName}}={editingRecord}
             isPending={isFormPending}
             onSubmit={handleFormSubmit}
             onCancel={() => {
               setFormOpen(false);
-              setEditing{{pascalCase entityName}}(undefined);
+              setEditingRecord(undefined);
             }}
           />
         ) : null}
       </CrudFormDialog>
-
       <CrudConfirmDialog
-        open={deleting{{pascalCase entityName}} !== undefined}
+        open={deletingRecord !== undefined}
         onOpenChange={(open) => {
           if (!open) {
-            setDeleting{{pascalCase entityName}}(undefined);
+            setDeletingRecord(undefined);
           }
         }}
-        title="Excluir {{camelCase entityName}}?"
+        title="Excluir {{singularLabel}}?"
         description={
-          deleting{{pascalCase entityName}}
-            ? `O registro "${deleting{{pascalCase entityName}}.name}" será excluído permanentemente.`
+          deletingRecord
+            ? `O registro "${deletingRecord.id}" será excluído permanentemente.`
             : "Esta operação não poderá ser desfeita."
         }
-        confirmLabel={
-          deleteMutation.isPending ? "Excluindo..." : "Excluir"
-        }
+        confirmLabel={deleteMutation.isPending ? "Excluindo..." : "Excluir"}
         confirmDisabled={deleteMutation.isPending}
         onConfirm={handleDelete}
       />
@@ -490,24 +394,27 @@ export function {{pascalCase entityName}}Container() {
   );
 }
 
-interface {{pascalCase entityName}}HeaderProps {
+interface RecordHeaderProps {
+  pluralLabel: string;
+  singularLabel: string;
   onCreate: () => void;
 }
 
-function {{pascalCase entityName}}Header({
+function RecordHeader({
+  pluralLabel,
+  singularLabel,
   onCreate,
-}: {{pascalCase entityName}}HeaderProps) {
+}: RecordHeaderProps) {
   return (
     <div className="flex items-center justify-between gap-4">
       <div>
         <p className="text-sm text-muted-foreground">
-          Gerencie os {{camelCase pluralName}} disponíveis.
+          Gerencie {pluralLabel.toLowerCase()}.
         </p>
       </div>
-
       <Button type="button" onClick={onCreate}>
         <Plus />
-        Novo {{camelCase entityName}}
+        Novo {singularLabel.toLowerCase()}
       </Button>
     </div>
   );

@@ -1,16 +1,15 @@
 import { z } from "zod";
+{{#each enumNames}}
+import type { {{this}} } from "@/generated/prisma/enums";
+{{/each}}
 
 export const {{camelCase entityName}}ListQuerySchema = z.object({
   search: z.string().trim().max(100).default(""),
-
   page: z.number().int().positive().default(1),
-
-  pageSize: z.number().int().positive().max(100).default(20),
-
+  pageSize: z.number().int().positive().max(100).default(10),
   sortBy: z
-    .enum(["name", "duration", "price", "active", "createdAt"])
-    .default("name"),
-
+    .enum(["id", {{#each sortableFields}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}])
+    .default("{{defaultSortField}}"),
   sortDirection: z.enum(["asc", "desc"]).default("asc"),
 });
 
@@ -20,13 +19,9 @@ export type {{pascalCase entityName}}ListQuery = z.infer<
 
 export interface {{pascalCase entityName}}ListItem {
   id: string;
-  name: string;
-  description: string | null;
-  duration: number;
-  price: string;
-  active: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+{{#each fields}}
+  {{name}}: {{listType}};
+{{/each}}
 }
 
 export interface {{pascalCase entityName}}ListResult {
