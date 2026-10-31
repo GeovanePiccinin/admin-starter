@@ -1,9 +1,22 @@
 import { defineConfig } from "vitest/config";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { parse as parseEnv } from "dotenv";
 import { loadEnv } from "vite";
 
 const envDir = process.cwd();
 const testEnv = loadEnv("test", envDir, "");
+const explicitTestEnv = [".env.test", ".env.test.local"].reduce<
+  Record<string, string>
+>((environment, fileName) => {
+  const filePath = path.join(envDir, fileName);
+
+  if (existsSync(filePath)) {
+    Object.assign(environment, parseEnv(readFileSync(filePath)));
+  }
+
+  return environment;
+}, {});
 const testDatabaseUrl =
   process.env.TEST_DATABASE_URL?.trim() || testEnv.TEST_DATABASE_URL?.trim();
 
@@ -18,6 +31,8 @@ const targetOverrideParameters = [
   "host",
   "hostaddr",
   "port",
+  "options",
+  "search_path",
   "service",
   "servicefile",
 ];
@@ -52,12 +67,24 @@ function getDatabaseTarget(
     );
   }
 
-  const database = decodeURIComponent(url.pathname.slice(1));
+  if (!url.hostname || !url.port || !url.pathname.startsWith("/")) {
+    throw new Error(
+      `${variableName} must explicitly specify its host, port, and database.`,
+    );
+  }
+
+  const encodedDatabase = url.pathname.slice(1);
+
+  if (!encodedDatabase || encodedDatabase.includes("%") || encodedDatabase.includes("/")) {
+    throw new Error(
+      `${variableName} must use a database name without percent-encoding or path separators.`,
+    );
+  }
 
   return {
     host: url.hostname,
-    port: url.port || "5432",
-    database,
+    port: url.port,
+    database: encodedDatabase,
   };
 }
 
@@ -82,6 +109,20 @@ function getLocalTestDatabaseTarget(
   }
 
   return target;
+}
+
+function validateTestSchema(
+  connectionString: string,
+  variableName: string,
+): void {
+  const url = new URL(connectionString);
+  const schemas = url.searchParams.getAll("schema");
+
+  if (schemas.length > 1 || (schemas.length === 1 && schemas[0] !== "public")) {
+    throw new Error(
+      `${variableName} must use the "public" schema or omit the schema parameter.`,
+    );
+  }
 }
 
 function sameDatabaseTarget(
@@ -110,6 +151,7 @@ const testDatabaseTarget = getLocalTestDatabaseTarget(
   testDatabaseUrl,
   "TEST_DATABASE_URL",
 );
+validateTestSchema(testDatabaseUrl, "TEST_DATABASE_URL");
 
 const normalDatabaseUrls = [
   process.env.DATABASE_URL,
@@ -130,7 +172,7 @@ for (const normalDatabaseUrl of normalDatabaseUrls) {
   }
 }
 
-const configuredTestDatabaseUrl = testEnv.DATABASE_URL?.trim();
+const configuredTestDatabaseUrl = explicitTestEnv.DATABASE_URL?.trim();
 
 if (configuredTestDatabaseUrl) {
   const configuredTestTarget = getDatabaseTarget(
@@ -145,7 +187,17 @@ if (configuredTestDatabaseUrl) {
   }
 }
 
+const testSchema = "public";
+const configuredTestSchema = explicitTestEnv.DATABASE_SCHEMA?.trim();
+
+if (configuredTestSchema && configuredTestSchema !== testSchema) {
+  throw new Error(
+    `DATABASE_SCHEMA in the test environment must be "${testSchema}".`,
+  );
+}
+
 process.env.DATABASE_URL = testDatabaseUrl;
+process.env.DATABASE_SCHEMA = testSchema;
 
 export default defineConfig({
   resolve: {
@@ -161,6 +213,7 @@ export default defineConfig({
       ...testEnv,
       TEST_DATABASE_URL: testDatabaseUrl,
       DATABASE_URL: testDatabaseUrl,
+      DATABASE_SCHEMA: testSchema,
     },
   },
 });
