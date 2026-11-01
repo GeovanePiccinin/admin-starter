@@ -19,6 +19,7 @@ export type ClientRecordAttendanceStatus = keyof typeof AttendanceStatus;
 export interface ClientRecordListItem {
   id: string;
   content: string;
+  authorName: string | null;
   createdAt: Date;
   updatedAt: Date;
   client: {

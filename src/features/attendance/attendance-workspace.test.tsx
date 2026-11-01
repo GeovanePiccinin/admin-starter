@@ -64,6 +64,7 @@ const workspace: AttendanceWorkspace = {
     {
       id: "record-1",
       content: "Conteúdo confidencial do prontuário",
+      authorName: "Bruno Profissional",
       createdAt: new Date("2032-03-05T11:00:00.000Z"),
       updatedAt: new Date("2032-03-05T11:00:00.000Z"),
       attendance: null,

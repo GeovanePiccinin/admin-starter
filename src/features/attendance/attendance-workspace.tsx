@@ -242,6 +242,9 @@ function ClientRecords({ workspace }: { workspace: AttendanceWorkspace }) {
             <summary className="cursor-pointer list-none font-medium marker:hidden">
               <span className="flex flex-wrap items-center justify-between gap-2">
                 <span>Registro de {formatDate(record.createdAt)}</span>
+                <span className="text-sm text-muted-foreground">
+                  Autor: {record.authorName ?? "Não informado"}
+                </span>
                 {record.attendance ? (
                   <span className="text-sm text-muted-foreground">
                     Atendimento de{" "}

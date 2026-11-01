@@ -44,6 +44,7 @@ model Tenant {
 
   users                User[]
   clients              Client[]
+  clientProfessionals  ClientProfessional[]
   professionals        Professional[]
   professionalServices ProfessionalService[]
   services             Service[]
@@ -84,9 +85,10 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  appointments Appointment[]
-  clientRecords ClientRecord[]
+  tenant                  Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointments            Appointment[]
+  clientRecords           ClientRecord[]
+  professionalAssignments ClientProfessional[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
@@ -105,6 +107,7 @@ model Professional {
   user                 User                  @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Cascade)
   appointments         Appointment[]
   professionalServices ProfessionalService[]
+  clientAssignments    ClientProfessional[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, userId])
@@ -148,6 +151,21 @@ model ProfessionalService {
   @@map("professional_services")
 }
 
+model ClientProfessional {
+  tenantId       String
+  clientId       String
+  professionalId String
+  createdAt      DateTime @default(now())
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client       Client       @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
+  professional Professional @relation(fields: [tenantId, professionalId], references: [tenantId, id], onDelete: Cascade)
+
+  @@id([tenantId, clientId, professionalId])
+  @@index([tenantId, professionalId, clientId])
+  @@map("client_professionals")
+}
+
 model Appointment {
   id             String            @id @default(cuid())
   tenantId       String
@@ -188,10 +206,10 @@ model Attendance {
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
-  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  appointment Appointment @relation(fields: [tenantId, appointmentId], references: [tenantId, id], onDelete: Restrict)
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointment   Appointment    @relation(fields: [tenantId, appointmentId], references: [tenantId, id], onDelete: Restrict)
   clientRecords ClientRecord[]
-  payment     Payment?
+  payment       Payment?
 
   @@unique([tenantId, id])
   @@unique([tenantId, appointmentId])
@@ -201,13 +219,15 @@ model Attendance {
 }
 
 model ClientRecord {
-  id           String   @id @default(cuid())
-  tenantId     String
-  clientId     String
-  attendanceId String?
-  content      String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  tenantId             String
+  clientId             String
+  attendanceId         String?
+  content              String
+  authorProfessionalId String?
+  authorName           String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client     Client      @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Restrict)

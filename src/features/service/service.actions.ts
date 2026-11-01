@@ -1,8 +1,10 @@
 "use server";
 
-import { auth } from "@/auth";
-
 import { logger } from "@/lib/logger/logger";
+import {
+  requireAuthenticatedActor,
+  requireRole,
+} from "@/lib/auth/get-authenticated-user";
 
 import {
   createServiceSchema,
@@ -22,37 +24,26 @@ import {
   type ServiceListResult,
 } from "./service.query";
 
-async function getTenantId(): Promise<string> {
-  const session = await auth();
-
-  const tenantId = session?.user?.tenantId;
-
-  if (!tenantId) {
-    throw new Error("Usuário não autenticado.");
-  }
-
-  return tenantId;
-}
-
 export async function getServices(input: unknown): Promise<ServiceListResult> {
-  const tenantId = await getTenantId();
+  const actor = await requireAuthenticatedActor();
 
   const query = serviceListQuerySchema.parse(input);
 
-  return findServices(tenantId, query);
+  return findServices(actor.tenantId, query);
 }
 
 export async function createServiceAction(input: unknown): Promise<void> {
-  const tenantId = await getTenantId();
+  const actor = await requireAuthenticatedActor();
+  requireRole(actor, "ADMIN");
   const data = createServiceSchema.parse(input);
 
   try {
-    await createService(tenantId, data);
+    await createService(actor.tenantId, data);
 
     logger.info(
       {
         operation: "service.create",
-        tenantId,
+        tenantId: actor.tenantId,
       },
       "Service created",
     );
@@ -60,7 +51,7 @@ export async function createServiceAction(input: unknown): Promise<void> {
     logger.error(
       {
         operation: "service.create",
-        tenantId,
+        tenantId: actor.tenantId,
         error,
       },
       "Failed to create service",
@@ -71,16 +62,17 @@ export async function createServiceAction(input: unknown): Promise<void> {
 }
 
 export async function updateServiceAction(input: unknown): Promise<void> {
-  const tenantId = await getTenantId();
+  const actor = await requireAuthenticatedActor();
+  requireRole(actor, "ADMIN");
   const data = updateServiceSchema.parse(input);
 
   try {
-    await updateService(tenantId, data);
+    await updateService(actor.tenantId, data);
 
     logger.info(
       {
         operation: "service.update",
-        tenantId,
+        tenantId: actor.tenantId,
         serviceId: data.id,
       },
       "Service updated",
@@ -89,7 +81,7 @@ export async function updateServiceAction(input: unknown): Promise<void> {
     logger.error(
       {
         operation: "service.update",
-        tenantId,
+        tenantId: actor.tenantId,
         serviceId: data.id,
         error,
       },
@@ -101,16 +93,17 @@ export async function updateServiceAction(input: unknown): Promise<void> {
 }
 
 export async function deleteServiceAction(input: unknown): Promise<void> {
-  const tenantId = await getTenantId();
+  const actor = await requireAuthenticatedActor();
+  requireRole(actor, "ADMIN");
   const data = deleteServiceSchema.parse(input);
 
   try {
-    await deleteService(tenantId, data.id);
+    await deleteService(actor.tenantId, data.id);
 
     logger.info(
       {
         operation: "service.delete",
-        tenantId,
+        tenantId: actor.tenantId,
         serviceId: data.id,
       },
       "Service deleted",
@@ -119,7 +112,7 @@ export async function deleteServiceAction(input: unknown): Promise<void> {
     logger.error(
       {
         operation: "service.delete",
-        tenantId,
+        tenantId: actor.tenantId,
         serviceId: data.id,
         error,
       },

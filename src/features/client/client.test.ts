@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db/prisma";
 import {
   createClient,
   deleteClient,
+  findClientAssignmentOptions,
   findClients,
   updateClient,
 } from "./client.repository";
@@ -321,6 +322,88 @@ describe("Client list", () => {
         email: "novo@example.com",
         phone: "+55 11 9999-9999",
       });
+    });
+
+    it("assigns clients only to professionals in the same tenant", async () => {
+      const userA = await prisma.user.create({
+        data: {
+          tenantId: tenantAId,
+          name: "Professional A",
+          email: `professional-a-${crypto.randomUUID()}@example.com`,
+          passwordHash: "test-hash",
+        },
+      });
+      const professionalA = await prisma.professional.create({
+        data: { tenantId: tenantAId, userId: userA.id },
+      });
+      const userA2 = await prisma.user.create({
+        data: {
+          tenantId: tenantAId,
+          name: "Professional A2",
+          email: `professional-a2-${crypto.randomUUID()}@example.com`,
+          passwordHash: "test-hash",
+        },
+      });
+      const professionalA2 = await prisma.professional.create({
+        data: { tenantId: tenantAId, userId: userA2.id },
+      });
+      const userB = await prisma.user.create({
+        data: {
+          tenantId: tenantBId,
+          name: "Professional B",
+          email: `professional-b-${crypto.randomUUID()}@example.com`,
+          passwordHash: "test-hash",
+        },
+      });
+      const professionalB = await prisma.professional.create({
+        data: { tenantId: tenantBId, userId: userB.id },
+      });
+
+      await createClient(
+        tenantAId,
+        { name: "Assigned client" },
+        [professionalA.id, professionalA2.id],
+      );
+
+      const client = await prisma.client.findFirstOrThrow({
+        where: { tenantId: tenantAId, name: "Assigned client" },
+      });
+
+      await expect(
+        findClientAssignmentOptions(tenantAId, client.id),
+      ).resolves.toMatchObject({
+        professionalIds: [professionalA.id, professionalA2.id].sort(),
+        professionals: [
+          { id: professionalA.id, name: "Professional A" },
+          { id: professionalA2.id, name: "Professional A2" },
+        ],
+      });
+
+      await updateClient(tenantAId, {
+        id: client.id,
+        name: "Assigned client updated",
+        professionalIds: [professionalA2.id],
+      });
+
+      await expect(
+        findClientAssignmentOptions(tenantAId, client.id),
+      ).resolves.toMatchObject({
+        professionalIds: [professionalA2.id],
+      });
+
+      await expect(
+        createClient(
+          tenantAId,
+          { name: "Foreign assignment" },
+          [professionalB.id],
+        ),
+      ).rejects.toThrow("Um ou mais profissionais não foram encontrados.");
+
+      await expect(
+        prisma.client.findFirst({
+          where: { tenantId: tenantAId, name: "Foreign assignment" },
+        }),
+      ).resolves.toBeNull();
     });
 
     it("updates only a client belonging to the supplied tenant", async () => {

@@ -67,6 +67,14 @@ describe("Attendance", () => {
     serviceAId = service.id;
     professionalAId = professional.id;
 
+    await prisma.clientProfessional.create({
+      data: {
+        tenantId: tenantAId,
+        clientId: clientAId,
+        professionalId: professionalAId,
+      },
+    });
+
     await prisma.professionalService.create({
       data: {
         tenantId: tenantAId,

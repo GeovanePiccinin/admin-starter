@@ -24,3 +24,13 @@ export interface ClientListResult {
   pageSize: number;
   pageCount: number;
 }
+
+export interface ClientProfessionalOption {
+  id: string;
+  name: string;
+}
+
+export interface ClientAssignmentOptions {
+  professionals: ClientProfessionalOption[];
+  professionalIds: string[];
+}

@@ -78,6 +78,13 @@ describe("ClientRecord", () => {
     });
     serviceAId = service.id;
     professionalAId = professional.id;
+    await prisma.clientProfessional.create({
+      data: {
+        tenantId: tenantAId,
+        clientId: clientAId,
+        professionalId: professionalAId,
+      },
+    });
 
     const [appointmentA, otherClientAppointment] = await Promise.all([
       createAppointmentFixture({
@@ -213,6 +220,9 @@ describe("ClientRecord", () => {
         clientId: clientAId,
         attendanceId: attendanceAId,
         content: "Registro com atendimento",
+      }, professionalAId, {
+        professionalId: professionalAId,
+        name: "Profissional de teste",
       });
       await createClientRecord(tenantAId, {
         clientId: otherClientAId,
@@ -223,18 +233,28 @@ describe("ClientRecord", () => {
       const records = await prisma.clientRecord.findMany({
         where: { tenantId: tenantAId },
         orderBy: { content: "asc" },
-        select: { clientId: true, attendanceId: true, content: true },
+        select: {
+          clientId: true,
+          attendanceId: true,
+          content: true,
+          authorProfessionalId: true,
+          authorName: true,
+        },
       });
       expect(records).toEqual([
         {
           clientId: clientAId,
           attendanceId: attendanceAId,
           content: "Registro com atendimento",
+          authorProfessionalId: professionalAId,
+          authorName: "Profissional de teste",
         },
         {
           clientId: otherClientAId,
           attendanceId: null,
           content: "Registro sem atendimento",
+          authorProfessionalId: null,
+          authorName: null,
         },
       ]);
 

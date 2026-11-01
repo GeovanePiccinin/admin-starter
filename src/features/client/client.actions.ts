@@ -1,12 +1,15 @@
 "use server";
 
-import { auth } from "@/auth";
-
 import { logger } from "@/lib/logger/logger";
+import {
+  requireAuthenticatedActor,
+  requireRole,
+} from "@/lib/auth/get-authenticated-user";
 
 import {
   createClient,
   deleteClient,
+  findClientAssignmentOptions,
   findClients,
   updateClient,
 } from "./client.repository";
@@ -15,40 +18,49 @@ import {
   type ClientListResult,
 } from "./client.query";
 import {
+  clientAssignmentOptionsSchema,
   createClientSchema,
   deleteClientSchema,
   updateClientSchema,
 } from "./client.schema";
 
-async function getTenantId(): Promise<string> {
-  const session = await auth();
-  const tenantId = session?.user?.tenantId;
+export async function getClients(
+  input: unknown,
+): Promise<ClientListResult & { canManage: boolean }> {
+  const actor = await requireAuthenticatedActor();
+  const query = clientListQuerySchema.parse(input);
+  const result = await findClients(actor.tenantId, query);
 
-  if (!tenantId) {
-    throw new Error("Usuário não autenticado.");
-  }
-
-  return tenantId;
+  return {
+    ...result,
+    canManage: actor.role === "ADMIN",
+  };
 }
 
-export async function getClients(input: unknown): Promise<ClientListResult> {
-  const tenantId = await getTenantId();
-  const query = clientListQuerySchema.parse(input);
+export async function getClientAssignmentOptions(input: unknown) {
+  const actor = await requireAuthenticatedActor();
+  requireRole(actor, "ADMIN");
+  const data = clientAssignmentOptionsSchema.parse(input);
 
-  return findClients(tenantId, query);
+  return findClientAssignmentOptions(actor.tenantId, data.clientId);
 }
 
 export async function createClientAction(input: unknown): Promise<void> {
-  const tenantId = await getTenantId();
+  const actor = await requireAuthenticatedActor();
   const data = createClientSchema.parse(input);
+  const { professionalIds, ...clientData } = data;
 
   try {
-    await createClient(tenantId, data);
+    if (actor.role === "ADMIN" && professionalIds !== undefined) {
+      await createClient(actor.tenantId, clientData, professionalIds);
+    } else {
+      await createClient(actor.tenantId, clientData);
+    }
 
     logger.info(
       {
         operation: "client.create",
-        tenantId,
+        tenantId: actor.tenantId,
       },
       "Client created",
     );
@@ -56,7 +68,7 @@ export async function createClientAction(input: unknown): Promise<void> {
     logger.error(
       {
         operation: "client.create",
-        tenantId,
+        tenantId: actor.tenantId,
         error,
       },
       "Failed to create client",
@@ -67,16 +79,17 @@ export async function createClientAction(input: unknown): Promise<void> {
 }
 
 export async function updateClientAction(input: unknown): Promise<void> {
-  const tenantId = await getTenantId();
+  const actor = await requireAuthenticatedActor();
+  requireRole(actor, "ADMIN");
   const data = updateClientSchema.parse(input);
 
   try {
-    await updateClient(tenantId, data);
+    await updateClient(actor.tenantId, data);
 
     logger.info(
       {
         operation: "client.update",
-        tenantId,
+        tenantId: actor.tenantId,
         clientId: data.id,
       },
       "Client updated",
@@ -85,7 +98,7 @@ export async function updateClientAction(input: unknown): Promise<void> {
     logger.error(
       {
         operation: "client.update",
-        tenantId,
+        tenantId: actor.tenantId,
         clientId: data.id,
         error,
       },
@@ -97,16 +110,17 @@ export async function updateClientAction(input: unknown): Promise<void> {
 }
 
 export async function deleteClientAction(input: unknown): Promise<void> {
-  const tenantId = await getTenantId();
+  const actor = await requireAuthenticatedActor();
+  requireRole(actor, "ADMIN");
   const data = deleteClientSchema.parse(input);
 
   try {
-    await deleteClient(tenantId, data.id);
+    await deleteClient(actor.tenantId, data.id);
 
     logger.info(
       {
         operation: "client.delete",
-        tenantId,
+        tenantId: actor.tenantId,
         clientId: data.id,
       },
       "Client deleted",
@@ -115,7 +129,7 @@ export async function deleteClientAction(input: unknown): Promise<void> {
     logger.error(
       {
         operation: "client.delete",
-        tenantId,
+        tenantId: actor.tenantId,
         clientId: data.id,
         error,
       },

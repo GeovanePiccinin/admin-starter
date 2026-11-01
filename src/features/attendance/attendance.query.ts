@@ -89,6 +89,7 @@ export interface AttendanceWorkspace {
   clientRecords: Array<{
     id: string;
     content: string;
+    authorName: string | null;
     createdAt: Date;
     updatedAt: Date;
     attendance: {

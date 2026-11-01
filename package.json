@@ -5,6 +5,7 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev",
+    "dev:test": "pnpx dotenv-cli -e .env.test -o -- pnpm run dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

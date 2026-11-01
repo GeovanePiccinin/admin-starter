@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 
 import type {
+  ClientAssignmentOptions,
   ClientListItem,
   ClientListQuery,
   ClientListResult,
@@ -70,14 +71,30 @@ export async function findClients(
 export async function createClient(
   tenantId: string,
   input: CreateClientData,
+  professionalIds?: string[],
 ): Promise<void> {
-  await prisma.client.create({
-    data: {
-      tenantId,
-      name: input.name,
-      email: input.email || null,
-      phone: input.phone || null,
-    },
+  await prisma.$transaction(async (transaction) => {
+    await validateProfessionalIds(transaction, tenantId, professionalIds);
+
+    const client = await transaction.client.create({
+      data: {
+        tenantId,
+        name: input.name,
+        email: input.email || null,
+        phone: input.phone || null,
+      },
+      select: { id: true },
+    });
+
+    if (professionalIds?.length) {
+      await transaction.clientProfessional.createMany({
+        data: professionalIds.map((professionalId) => ({
+          tenantId,
+          clientId: client.id,
+          professionalId,
+        })),
+      });
+    }
   });
 }
 
@@ -85,21 +102,112 @@ export async function updateClient(
   tenantId: string,
   input: UpdateClientData,
 ): Promise<void> {
-  const result = await prisma.client.updateMany({
+  await prisma.$transaction(async (transaction) => {
+    const result = await transaction.client.updateMany({
+      where: {
+        id: input.id,
+        tenantId,
+      },
+      data: {
+        name: input.name,
+        email: input.email || null,
+        phone: input.phone || null,
+      },
+    });
+
+    if (result.count === 0) {
+      throw new Error("Cliente não encontrado.");
+    }
+
+    if (input.professionalIds !== undefined) {
+      await validateProfessionalIds(
+        transaction,
+        tenantId,
+        input.professionalIds,
+      );
+
+      await transaction.clientProfessional.deleteMany({
+        where: {
+          tenantId,
+          clientId: input.id,
+        },
+      });
+
+      if (input.professionalIds.length) {
+        await transaction.clientProfessional.createMany({
+          data: input.professionalIds.map((professionalId) => ({
+            tenantId,
+            clientId: input.id,
+            professionalId,
+          })),
+        });
+      }
+    }
+  });
+}
+
+async function validateProfessionalIds(
+  transaction: Prisma.TransactionClient,
+  tenantId: string,
+  professionalIds?: string[],
+): Promise<void> {
+  if (!professionalIds?.length) {
+    return;
+  }
+
+  const professionals = await transaction.professional.findMany({
     where: {
-      id: input.id,
       tenantId,
+      id: { in: professionalIds },
     },
-    data: {
-      name: input.name,
-      email: input.email || null,
-      phone: input.phone || null,
-    },
+    select: { id: true },
   });
 
-  if (result.count === 0) {
+  if (professionals.length !== professionalIds.length) {
+    throw new Error("Um ou mais profissionais não foram encontrados.");
+  }
+}
+
+export async function findClientAssignmentOptions(
+  tenantId: string,
+  clientId?: string,
+): Promise<ClientAssignmentOptions> {
+  const [professionals, client] = await Promise.all([
+    prisma.professional.findMany({
+      where: { tenantId },
+      orderBy: [{ user: { name: "asc" } }, { id: "asc" }],
+      select: {
+        id: true,
+        user: { select: { name: true } },
+      },
+    }),
+    clientId
+      ? prisma.client.findFirst({
+          where: { id: clientId, tenantId },
+          select: {
+            professionalAssignments: {
+              select: { professionalId: true },
+              orderBy: { professionalId: "asc" },
+            },
+          },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  if (clientId && !client) {
     throw new Error("Cliente não encontrado.");
   }
+
+  return {
+    professionals: professionals.map((professional) => ({
+      id: professional.id,
+      name: professional.user.name,
+    })),
+    professionalIds:
+      client?.professionalAssignments.map(
+        (assignment) => assignment.professionalId,
+      ) ?? [],
+  };
 }
 
 export async function deleteClient(

@@ -2,10 +2,11 @@
 
 import argon2 from "argon2";
 
-import { auth } from "@/auth";
-
 import { logger } from "@/lib/logger/logger";
-import { prisma } from "@/lib/db/prisma";
+import {
+  requireAuthenticatedActor,
+  requireRole,
+} from "@/lib/auth/get-authenticated-user";
 
 import {
   createProfessional,
@@ -24,49 +25,16 @@ import {
   updateProfessionalSchema,
 } from "./professional.schema";
 
-async function getProfessionalActor() {
-  const session = await auth();
-  const userId = session?.user?.id;
-  const tenantId = session?.user?.tenantId;
-
-  if (!userId || !tenantId) {
-    throw new Error("Usuário não autenticado.");
-  }
-
-  const user = await prisma.user.findFirst({
-    where: {
-      id: userId,
-      tenantId,
-    },
-    select: {
-      role: true,
-    },
-  });
-
-  if (!user) {
-    throw new Error("Usuário não autenticado.");
-  }
-
-  return {
-    tenantId,
-    role: user.role,
-  };
-}
-
 async function requireProfessionalManager() {
-  const actor = await getProfessionalActor();
-
-  if (actor.role !== "ADMIN") {
-    throw new Error("Você não tem permissão para gerenciar profissionais.");
-  }
-
+  const actor = await requireAuthenticatedActor();
+  requireRole(actor, "ADMIN");
   return actor;
 }
 
 export async function getProfessionals(
   input: unknown,
 ): Promise<ProfessionalListResult & { canManage: boolean }> {
-  const actor = await getProfessionalActor();
+  const actor = await requireAuthenticatedActor();
   const query = professionalListQuerySchema.parse(input);
   const result = await findProfessionals(actor.tenantId, query);
 
