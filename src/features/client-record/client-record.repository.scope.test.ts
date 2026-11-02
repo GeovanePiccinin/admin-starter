@@ -257,6 +257,7 @@ describe("client-record repository professional scope", () => {
           name: "Assigned client",
           email: null,
           phone: null,
+          professionalAssignments: [{ professionalId }],
         },
         professional: {
           id: professionalId,
