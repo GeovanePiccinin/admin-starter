@@ -21,6 +21,8 @@ import {
 
 interface ClientRecordFormProps {
   record?: ClientRecordListItem;
+  fixedClientId?: string;
+  fixedAttendanceId?: string;
   options: ClientRecordFormOptions;
   isAttendanceOptionsPending: boolean;
   isPending: boolean;
@@ -49,6 +51,8 @@ function formatAttendanceOption(attendance: ClientRecordAttendanceOption) {
 
 export function ClientRecordForm({
   record,
+  fixedClientId,
+  fixedAttendanceId,
   options,
   isAttendanceOptionsPending,
   isPending,
@@ -59,8 +63,8 @@ export function ClientRecordForm({
   const form = useForm<ClientRecordFormInput, undefined, ClientRecordFormData>({
     resolver: zodResolver(clientRecordFormSchema),
     defaultValues: {
-      clientId: record?.client.id ?? "",
-      attendanceId: record?.attendance?.id ?? "",
+      clientId: record?.client.id ?? fixedClientId ?? "",
+      attendanceId: record?.attendance?.id ?? fixedAttendanceId ?? "",
       content: record?.content ?? "",
     },
   });
@@ -74,26 +78,37 @@ export function ClientRecordForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Cliente</FormLabel>
-              <select
-                {...field}
-                onChange={(event) => {
-                  if (event.target.value !== field.value) {
-                    form.setValue("attendanceId", "");
-                  }
-                  field.onChange(event);
-                  onClientChange(event.target.value);
-                }}
-                disabled={isPending || options.clients.length === 0}
-                className={selectClassName}
-                aria-invalid={Boolean(form.formState.errors.clientId)}
-              >
-                <option value="">Selecione um cliente</option>
-                {options.clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-              </select>
+              {fixedClientId ? (
+                <>
+                  <input {...field} type="hidden" value={fixedClientId} />
+                  <p className="text-sm">
+                    {options.clients.find(
+                      (client) => client.id === fixedClientId,
+                    )?.name ?? "Cliente selecionado"}
+                  </p>
+                </>
+              ) : (
+                <select
+                  {...field}
+                  onChange={(event) => {
+                    if (event.target.value !== field.value) {
+                      form.setValue("attendanceId", "");
+                    }
+                    field.onChange(event);
+                    onClientChange(event.target.value);
+                  }}
+                  disabled={isPending || options.clients.length === 0}
+                  className={selectClassName}
+                  aria-invalid={Boolean(form.formState.errors.clientId)}
+                >
+                  <option value="">Selecione um cliente</option>
+                  {options.clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                </select>
+              )}
               <FormMessage />
             </FormItem>
           )}
@@ -105,28 +120,45 @@ export function ClientRecordForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Atendimento vinculado (opcional)</FormLabel>
-              <select
-                {...field}
-                disabled={
-                  isPending ||
-                  isAttendanceOptionsPending ||
-                  options.attendances.length === 0
-                }
-                className={selectClassName}
-                aria-invalid={Boolean(form.formState.errors.attendanceId)}
-              >
-                <option value="">
-                  {isAttendanceOptionsPending
-                    ? "Carregando atendimentos..."
-                    : "Sem atendimento vinculado"}
-                </option>
-                {options.attendances.map((attendance) => (
-                  <option key={attendance.id} value={attendance.id}>
-                    {formatAttendanceOption(attendance)} ·{" "}
-                    {statusLabels[attendance.status]}
+              {fixedAttendanceId ? (
+                <>
+                  <input
+                    {...field}
+                    type="hidden"
+                    value={fixedAttendanceId}
+                  />
+                  <p className="text-sm">
+                    {options.attendances.some(
+                      (attendance) => attendance.id === fixedAttendanceId,
+                    )
+                      ? "Ficha vinculada a este atendimento."
+                      : "Atendimento selecionado"}
+                  </p>
+                </>
+              ) : (
+                <select
+                  {...field}
+                  disabled={
+                    isPending ||
+                    isAttendanceOptionsPending ||
+                    options.attendances.length === 0
+                  }
+                  className={selectClassName}
+                  aria-invalid={Boolean(form.formState.errors.attendanceId)}
+                >
+                  <option value="">
+                    {isAttendanceOptionsPending
+                      ? "Carregando atendimentos..."
+                      : "Sem atendimento vinculado"}
                   </option>
-                ))}
-              </select>
+                  {options.attendances.map((attendance) => (
+                    <option key={attendance.id} value={attendance.id}>
+                      {formatAttendanceOption(attendance)} ·{" "}
+                      {statusLabels[attendance.status]}
+                    </option>
+                  ))}
+                </select>
+              )}
               <FormMessage />
             </FormItem>
           )}

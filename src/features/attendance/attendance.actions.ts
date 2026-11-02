@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger/logger";
 import { requireAuthenticatedActor } from "@/lib/auth/get-authenticated-user";
 
 import {
+  completeAttendance,
   createAttendance,
   deleteAttendance,
   findAttendanceFormOptions,
@@ -142,6 +143,40 @@ export async function updateAttendanceAction(input: unknown): Promise<void> {
         error,
       },
       "Failed to update attendance",
+    );
+
+    throw error;
+  }
+}
+
+export async function completeAttendanceAction(input: unknown): Promise<void> {
+  const actor = await getAttendanceActor();
+  const data = attendanceWorkspaceQuerySchema.parse(input);
+
+  try {
+    await completeAttendance(
+      actor.tenantId,
+      data.id,
+      getProfessionalScope(actor),
+    );
+
+    logger.info(
+      {
+        operation: "attendance.complete",
+        tenantId: actor.tenantId,
+        attendanceId: data.id,
+      },
+      "Attendance completed",
+    );
+  } catch (error: unknown) {
+    logger.error(
+      {
+        operation: "attendance.complete",
+        tenantId: actor.tenantId,
+        attendanceId: data.id,
+        error,
+      },
+      "Failed to complete attendance",
     );
 
     throw error;

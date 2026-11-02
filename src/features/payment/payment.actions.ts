@@ -6,6 +6,7 @@ import { requireAuthenticatedActor } from "@/lib/auth/get-authenticated-user";
 import {
   createPayment,
   deletePayment,
+  findPaymentForAttendance,
   findPaymentFormOptions,
   findPayments,
   updatePayment,
@@ -17,6 +18,7 @@ import {
 import {
   createPaymentSchema,
   deletePaymentSchema,
+  paymentAttendanceQuerySchema,
   paymentFormOptionsSchema,
   updatePaymentSchema,
 } from "./payment.schema";
@@ -44,6 +46,17 @@ export async function getPayments(input: unknown): Promise<PaymentListResult> {
   return findPayments(
     actor.tenantId,
     query,
+    getProfessionalScope(actor),
+  );
+}
+
+export async function getPaymentForAttendance(input: unknown) {
+  const actor = await getPaymentActor();
+  const data = paymentAttendanceQuerySchema.parse(input);
+
+  return findPaymentForAttendance(
+    actor.tenantId,
+    data.attendanceId,
     getProfessionalScope(actor),
   );
 }

@@ -2,19 +2,46 @@
 
 import { useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
+import { CrudConfirmDialog } from "@/components/crud/crud-confirm-dialog";
+import { CrudFormDialog } from "@/components/crud/crud-form-dialog";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
-import { Button } from "@/components/ui/button";
-import { getAttendanceWorkspace } from "./attendance.actions";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  completeAttendanceAction,
+  getAttendanceFormOptions,
+  getAttendanceWorkspace,
+  updateAttendanceAction,
+} from "./attendance.actions";
 import type {
   AppointmentStatusValue,
   AttendanceStatusValue,
   AttendanceWorkspace,
 } from "./attendance.query";
+import { AttendanceForm } from "./attendance-form";
+import { ClientRecordForm } from "@/features/client-record/client-record-form";
+import {
+  createClientRecordAction,
+  getClientRecordFormOptions,
+} from "@/features/client-record/client-record.actions";
+import type { ClientRecordFormData } from "@/features/client-record/client-record.schema";
 
 type WorkspaceTab = "attendance" | "history" | "records";
 
@@ -272,7 +299,6 @@ function ClientRecords({ workspace }: { workspace: AttendanceWorkspace }) {
 }
 
 export function AttendanceWorkspace({ attendanceId }: { attendanceId: string }) {
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>("attendance");
   const workspaceQuery = useQuery({
     queryKey: ["attendance-workspace", attendanceId],
     queryFn: () => getAttendanceWorkspace({ id: attendanceId }),
@@ -306,8 +332,7 @@ export function AttendanceWorkspace({ attendanceId }: { attendanceId: string }) 
     );
   }
 
-  const workspace = workspaceQuery.data;
-  if (!workspace) {
+  if (!workspaceQuery.data) {
     return (
       <EmptyState
         title="Atendimento não encontrado"
@@ -325,6 +350,117 @@ export function AttendanceWorkspace({ attendanceId }: { attendanceId: string }) 
   }
 
   return (
+    <AttendanceWorkspaceContent
+      attendanceId={attendanceId}
+      workspace={workspaceQuery.data}
+    />
+  );
+}
+
+function AttendanceWorkspaceContent({
+  attendanceId,
+  workspace,
+}: {
+  attendanceId: string;
+  workspace: AttendanceWorkspace;
+}) {
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>("attendance");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [recordDialogOpen, setRecordDialogOpen] = useState(false);
+  const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
+  const [completionSuccessOpen, setCompletionSuccessOpen] = useState(false);
+
+  const attendanceOptionsQuery = useQuery({
+    queryKey: ["attendance-form-options", attendanceId],
+    queryFn: () => getAttendanceFormOptions({ attendanceId }),
+    enabled: editDialogOpen,
+  });
+  const clientRecordOptionsQuery = useQuery({
+    queryKey: ["client-record-form-options", workspace.appointment.client.id],
+    queryFn: () =>
+      getClientRecordFormOptions({
+        clientId: workspace.appointment.client.id,
+      }),
+    enabled: recordDialogOpen && workspace.canCreateClientRecord,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: updateAttendanceAction,
+    onSuccess: async () => {
+      toast.success("Atendimento atualizado com sucesso.");
+      setEditDialogOpen(false);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["attendance-workspace", attendanceId],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["attendances"] }),
+      ]);
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar o atendimento.",
+      );
+    },
+  });
+
+  const createRecordMutation = useMutation({
+    mutationFn: createClientRecordAction,
+    onSuccess: async () => {
+      toast.success("Ficha do cliente cadastrada com sucesso.");
+      setRecordDialogOpen(false);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["attendance-workspace", attendanceId],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["client-records"] }),
+      ]);
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível cadastrar a ficha do cliente.",
+      );
+    },
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: completeAttendanceAction,
+    onSuccess: async () => {
+      setCompletionDialogOpen(false);
+      setCompletionSuccessOpen(true);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["attendance-workspace", attendanceId],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["attendances"] }),
+      ]);
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível concluir o atendimento.",
+      );
+    },
+  });
+
+  function handleAttendanceSubmit(data: {
+    appointmentId: string;
+    status: AttendanceStatusValue;
+    notes: string;
+  }) {
+    updateMutation.mutate({ id: attendanceId, ...data });
+  }
+
+  function handleRecordSubmit(data: ClientRecordFormData) {
+    createRecordMutation.mutate(data);
+  }
+
+  return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -335,12 +471,29 @@ export function AttendanceWorkspace({ attendanceId }: { attendanceId: string }) 
             Atendimento
           </h1>
         </div>
-        <Link
-          className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-          href="/attendances"
-        >
-          Voltar para atendimentos
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setEditDialogOpen(true)}
+          >
+            Editar atendimento
+          </Button>
+          {workspace.status === "IN_PROGRESS" ? (
+            <Button
+              type="button"
+              onClick={() => setCompletionDialogOpen(true)}
+            >
+              Concluir atendimento
+            </Button>
+          ) : null}
+          <Link
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+            href="/attendances"
+          >
+            Voltar para atendimentos
+          </Link>
+        </div>
       </div>
 
       <div
@@ -371,8 +524,153 @@ export function AttendanceWorkspace({ attendanceId }: { attendanceId: string }) 
         <AttendanceHistory workspace={workspace} />
       </div>
       <div hidden={activeTab !== "records"}>
-        <ClientRecords workspace={workspace} />
+        <div className="space-y-3">
+          {workspace.canCreateClientRecord ? (
+            <Button
+              type="button"
+              onClick={() => setRecordDialogOpen(true)}
+            >
+              Criar ficha
+            </Button>
+          ) : null}
+          <ClientRecords workspace={workspace} />
+        </div>
       </div>
+
+      <CrudFormDialog
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          if (!updateMutation.isPending) {
+            setEditDialogOpen(open);
+          }
+        }}
+        title="Editar atendimento"
+        description="Atualize as informações do atendimento."
+      >
+        {attendanceOptionsQuery.isPending ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Carregando agendamentos...
+          </p>
+        ) : attendanceOptionsQuery.isError ? (
+          <ErrorState
+            title="Não foi possível carregar os agendamentos."
+            description="Tente novamente para continuar."
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  void attendanceOptionsQuery.refetch();
+                }}
+              >
+                Tentar novamente
+              </Button>
+            }
+          />
+        ) : attendanceOptionsQuery.data ? (
+          <AttendanceForm
+            key={`${workspace.id}-${workspace.status}-${workspace.notes ?? ""}`}
+            attendance={workspace}
+            appointments={attendanceOptionsQuery.data.appointments}
+            allowCompletion={false}
+            isPending={updateMutation.isPending}
+            onSubmit={handleAttendanceSubmit}
+            onCancel={() => setEditDialogOpen(false)}
+          />
+        ) : null}
+      </CrudFormDialog>
+
+      <CrudFormDialog
+        open={recordDialogOpen}
+        onOpenChange={(open) => {
+          if (!createRecordMutation.isPending) {
+            setRecordDialogOpen(open);
+          }
+        }}
+        title="Criar ficha do cliente"
+        description="Registre informações no prontuário deste cliente."
+      >
+        {clientRecordOptionsQuery.isPending ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Carregando dados do cliente...
+          </p>
+        ) : clientRecordOptionsQuery.isError ? (
+          <ErrorState
+            title="Não foi possível carregar os dados do cliente."
+            description="Tente novamente para continuar."
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  void clientRecordOptionsQuery.refetch();
+                }}
+              >
+                Tentar novamente
+              </Button>
+            }
+          />
+        ) : clientRecordOptionsQuery.data ? (
+          <ClientRecordForm
+            key={workspace.id}
+            fixedClientId={workspace.appointment.client.id}
+            fixedAttendanceId={workspace.id}
+            options={clientRecordOptionsQuery.data}
+            isAttendanceOptionsPending={false}
+            isPending={createRecordMutation.isPending}
+            onSubmit={handleRecordSubmit}
+            onCancel={() => setRecordDialogOpen(false)}
+            onClientChange={() => {}}
+          />
+        ) : null}
+      </CrudFormDialog>
+
+      <CrudConfirmDialog
+        open={completionDialogOpen}
+        onOpenChange={(open) => {
+          if (!completeMutation.isPending) {
+            setCompletionDialogOpen(open);
+          }
+        }}
+        title="Concluir atendimento?"
+        description="O status será alterado para concluído. O pagamento não será registrado automaticamente."
+        confirmLabel={
+          completeMutation.isPending ? "Concluindo..." : "Concluir atendimento"
+        }
+        confirmDisabled={completeMutation.isPending}
+        onConfirm={() => completeMutation.mutate({ id: attendanceId })}
+      />
+
+      <Dialog
+        open={completionSuccessOpen}
+        onOpenChange={setCompletionSuccessOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Atendimento concluído</DialogTitle>
+            <DialogDescription>
+              O atendimento foi concluído. Você pode acessar o pagamento
+              correspondente agora ou fazer isso depois.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCompletionSuccessOpen(false)}
+            >
+              Fechar
+            </Button>
+            <Link
+              className={buttonVariants()}
+              href={`/payments?attendanceId=${encodeURIComponent(attendanceId)}`}
+              onClick={() => setCompletionSuccessOpen(false)}
+            >
+              Acessar pagamento
+            </Link>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

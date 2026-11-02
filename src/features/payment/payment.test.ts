@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db/prisma";
 import {
   createPayment,
   deletePayment,
+  findPaymentForAttendance,
   findPaymentFormOptions,
   findPayments,
   updatePayment,
@@ -412,10 +413,27 @@ describe("Payment", () => {
         tenantAId,
         professionalAId,
       );
+      const ownPayment = await findPaymentForAttendance(
+        tenantAId,
+        attendanceAId,
+        professionalAId,
+      );
+      const otherProfessionalPayment = await findPaymentForAttendance(
+        tenantAId,
+        attendanceAId,
+        "nonexistent-professional",
+      );
+      const otherTenantPayment = await findPaymentForAttendance(
+        tenantBId,
+        attendanceAId,
+      );
 
       expect(ownPayments.total).toBe(1);
       expect(ownPayments.items[0]?.attendance.id).toBe(attendanceAId);
       expect(otherPayments.total).toBe(0);
+      expect(ownPayment?.attendance.id).toBe(attendanceAId);
+      expect(otherProfessionalPayment).toBeNull();
+      expect(otherTenantPayment).toBeNull();
       expect(options.attendances.map(({ id }) => id)).toEqual([
         attendanceA3Id,
       ]);

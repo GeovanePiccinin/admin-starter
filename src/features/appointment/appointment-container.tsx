@@ -138,7 +138,7 @@ export function AppointmentContainer() {
   const [professionalId, setProfessionalId] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [status, setStatus] = useState<AppointmentStatusValue | "">("");
-  const [view, setView] = useState<"table" | "calendar">("table");
+  const [view, setView] = useState<"table" | "calendar">("calendar");
   const [formOpen, setFormOpen] = useState(false);
   const [newAppointmentSlot, setNewAppointmentSlot] = useState<
     { startAt: Date; endAt: Date } | undefined

@@ -207,7 +207,18 @@ export async function findAttendanceWorkspace(
           status: true,
           notes: true,
           client: {
-            select: { id: true, name: true, email: true, phone: true },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              professionalAssignments: {
+                where: professionalScopeId
+                  ? { tenantId, professionalId: professionalScopeId }
+                  : undefined,
+                select: { professionalId: true },
+              },
+            },
           },
           professional: {
             select: {
@@ -291,6 +302,9 @@ export async function findAttendanceWorkspace(
 
   return {
     id: attendance.id,
+    canCreateClientRecord:
+      !professionalScopeId ||
+      attendance.appointment.client.professionalAssignments.length > 0,
     status: attendance.status,
     startedAt: attendance.startedAt,
     completedAt: attendance.completedAt,
@@ -611,6 +625,31 @@ export async function updateAttendance(
       throw new Error("Atendimento não encontrado.");
     }
   });
+}
+
+export async function completeAttendance(
+  tenantId: string,
+  attendanceId: string,
+  professionalScopeId?: string,
+): Promise<void> {
+  const result = await prisma.attendance.updateMany({
+    where: {
+      id: attendanceId,
+      tenantId,
+      status: "IN_PROGRESS",
+      ...(professionalScopeId
+        ? { appointment: { professionalId: professionalScopeId } }
+        : {}),
+    },
+    data: {
+      status: "COMPLETED",
+      completedAt: new Date(),
+    },
+  });
+
+  if (result.count === 0) {
+    throw new Error("Atendimento não encontrado ou não está em andamento.");
+  }
 }
 
 export async function deleteAttendance(

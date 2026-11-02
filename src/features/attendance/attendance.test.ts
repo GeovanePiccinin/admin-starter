@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db/prisma";
 
 import {
+  completeAttendance,
   createAttendance,
   deleteAttendance,
   findAttendanceWorkspace,
@@ -419,6 +420,58 @@ describe("Attendance", () => {
           professionalAId,
         ),
       ).rejects.toThrow("O status deve avançar sequencialmente");
+    });
+
+    it("completes only in-scope in-progress attendance without creating payment", async () => {
+      const attendanceId = await createAttendance(
+        tenantAId,
+        { appointmentId: appointmentAId, notes: "" },
+        professionalAId,
+      );
+
+      await updateAttendance(
+        tenantAId,
+        {
+          id: attendanceId,
+          appointmentId: appointmentAId,
+          status: "IN_PROGRESS",
+          notes: "",
+        },
+        professionalAId,
+      );
+
+      await expect(
+        completeAttendance(tenantBId, attendanceId),
+      ).rejects.toThrow("Atendimento não encontrado ou não está em andamento.");
+      await expect(
+        completeAttendance(tenantAId, attendanceId, "another-professional"),
+      ).rejects.toThrow(
+        "Atendimento não encontrado ou não está em andamento.",
+      );
+
+      const beforeCompletion = Date.now();
+      await completeAttendance(tenantAId, attendanceId, professionalAId);
+      const afterCompletion = Date.now();
+      const completed = await prisma.attendance.findUniqueOrThrow({
+        where: { id: attendanceId },
+        select: { status: true, startedAt: true, completedAt: true },
+      });
+
+      expect(completed.status).toBe("COMPLETED");
+      expect(completed.completedAt?.getTime()).toBeGreaterThanOrEqual(
+        beforeCompletion,
+      );
+      expect(completed.completedAt?.getTime()).toBeLessThanOrEqual(
+        afterCompletion,
+      );
+      expect(
+        await prisma.payment.count({
+          where: { tenantId: tenantAId, attendanceId },
+        }),
+      ).toBe(0);
+      await expect(
+        completeAttendance(tenantAId, attendanceId, professionalAId),
+      ).rejects.toThrow("Atendimento não encontrado ou não está em andamento.");
     });
 
     it("scopes list, create, update and delete to the professional tenant", async () => {

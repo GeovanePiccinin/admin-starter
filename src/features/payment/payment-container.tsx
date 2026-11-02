@@ -23,6 +23,7 @@ import { useListControls } from "@/hooks/use-list-controls";
 import {
   createPaymentAction,
   deletePaymentAction,
+  getPaymentForAttendance,
   getPaymentFormOptions,
   getPayments,
   updatePaymentAction,
@@ -91,7 +92,11 @@ function formatDateTime(date: Date | null): string {
   }).format(date);
 }
 
-export function PaymentContainer() {
+export function PaymentContainer({
+  initialAttendanceId,
+}: {
+  initialAttendanceId?: string;
+}) {
   const queryClient = useQueryClient();
   const {
     search,
@@ -109,7 +114,10 @@ export function PaymentContainer() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [status, setStatus] = useState<PaymentStatusValue | "">("");
-  const [formOpen, setFormOpen] = useState(false);
+  const [prefilledAttendanceId, setPrefilledAttendanceId] = useState(
+    initialAttendanceId,
+  );
+  const [formOpen, setFormOpen] = useState(initialAttendanceId !== undefined);
   const [editingPayment, setEditingPayment] = useState<
     PaymentListItem | undefined
   >();
@@ -147,13 +155,34 @@ export function PaymentContainer() {
     placeholderData: (previousData) => previousData,
   });
 
+  const initialPaymentQuery = useQuery({
+    queryKey: ["payment-for-attendance", prefilledAttendanceId],
+    queryFn: () => {
+      if (!prefilledAttendanceId) {
+        throw new Error("Atendimento não informado.");
+      }
+
+      return getPaymentForAttendance({
+        attendanceId: prefilledAttendanceId,
+      });
+    },
+    enabled: prefilledAttendanceId !== undefined,
+  });
+
+  const activePayment =
+    prefilledAttendanceId !== undefined && initialPaymentQuery.isSuccess
+      ? initialPaymentQuery.data ?? undefined
+      : editingPayment;
+  const initialPaymentReady =
+    prefilledAttendanceId === undefined || initialPaymentQuery.isSuccess;
+
   const formOptionsQuery = useQuery({
-    queryKey: ["payment-form-options", editingPayment?.id],
+    queryKey: ["payment-form-options", activePayment?.id],
     queryFn: () =>
       getPaymentFormOptions(
-        editingPayment ? { paymentId: editingPayment.id } : {},
+        activePayment ? { paymentId: activePayment.id } : {},
       ),
-    enabled: formOpen,
+    enabled: formOpen && initialPaymentReady,
   });
 
   const createMutation = useMutation({
@@ -161,6 +190,7 @@ export function PaymentContainer() {
     onSuccess: async () => {
       toast.success("Pagamento cadastrado com sucesso.");
       setFormOpen(false);
+      setPrefilledAttendanceId(undefined);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["payments"] }),
         queryClient.invalidateQueries({ queryKey: ["attendances"] }),
@@ -181,6 +211,7 @@ export function PaymentContainer() {
       toast.success("Pagamento atualizado com sucesso.");
       setFormOpen(false);
       setEditingPayment(undefined);
+      setPrefilledAttendanceId(undefined);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["payments"] }),
         queryClient.invalidateQueries({ queryKey: ["attendances"] }),
@@ -225,11 +256,13 @@ export function PaymentContainer() {
   const isFormPending = createMutation.isPending || updateMutation.isPending;
 
   function handleCreate() {
+    setPrefilledAttendanceId(undefined);
     setEditingPayment(undefined);
     setFormOpen(true);
   }
 
   function handleEdit(payment: PaymentListItem) {
+    setPrefilledAttendanceId(undefined);
     setEditingPayment(payment);
     setFormOpen(true);
   }
@@ -244,10 +277,10 @@ export function PaymentContainer() {
   function handleFormSubmit(data: PaymentFormData) {
     const actionData = toActionData(data);
 
-    if (editingPayment) {
+    if (activePayment) {
       updateMutation.mutate({
         ...actionData,
-        id: editingPayment.id,
+        id: activePayment.id,
       });
       return;
     }
@@ -502,16 +535,41 @@ export function PaymentContainer() {
           setFormOpen(open);
           if (!open) {
             setEditingPayment(undefined);
+            setPrefilledAttendanceId(undefined);
           }
         }}
-        title={editingPayment ? "Editar pagamento" : "Novo pagamento"}
+        title={activePayment ? "Editar pagamento" : "Novo pagamento"}
         description={
-          editingPayment
+          activePayment
             ? "Atualize o atendimento, o status ou a data do pagamento."
             : "Associe um pagamento a um atendimento."
         }
       >
-        {formOpen && formOptionsQuery.isPending ? (
+        {formOpen &&
+        prefilledAttendanceId &&
+        initialPaymentQuery.isPending ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Localizando pagamento...
+          </p>
+        ) : formOpen &&
+          prefilledAttendanceId &&
+          initialPaymentQuery.isError ? (
+          <ErrorState
+            title="Não foi possível localizar o pagamento."
+            description="Tente novamente para continuar."
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  void initialPaymentQuery.refetch();
+                }}
+              >
+                Tentar novamente
+              </Button>
+            }
+          />
+        ) : formOpen && formOptionsQuery.isPending ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             Carregando atendimentos...
           </p>
@@ -531,10 +589,22 @@ export function PaymentContainer() {
               </Button>
             }
           />
+        ) : formOpen &&
+          formOptionsQuery.data &&
+          prefilledAttendanceId &&
+          !initialPaymentQuery.data &&
+          !formOptionsQuery.data.attendances.some(
+            (attendance) => attendance.id === prefilledAttendanceId,
+          ) ? (
+          <ErrorState
+            title="Atendimento indisponível para pagamento."
+            description="Ele pode não existir, não estar no seu escopo ou já possuir um pagamento."
+          />
         ) : formOpen && formOptionsQuery.data ? (
           <PaymentForm
-            key={editingPayment?.id ?? "new"}
-            payment={editingPayment}
+            key={activePayment?.id ?? "new"}
+            payment={activePayment}
+            initialAttendanceId={prefilledAttendanceId}
             options={formOptionsQuery.data}
             isPending={isFormPending}
             onSubmit={handleFormSubmit}

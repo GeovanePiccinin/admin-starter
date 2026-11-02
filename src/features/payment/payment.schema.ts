@@ -81,6 +81,10 @@ export const paymentFormOptionsSchema = z.object({
   paymentId: z.string().min(1).optional(),
 });
 
+export const paymentAttendanceQuerySchema = z.object({
+  attendanceId: z.string().min(1),
+});
+
 export type PaymentFormInput = z.input<typeof paymentFormSchema>;
 export type PaymentFormData = z.output<typeof paymentFormSchema>;
 export type CreatePaymentData = z.output<typeof createPaymentSchema>;

@@ -22,6 +22,7 @@ import {
 
 interface PaymentFormProps {
   payment?: PaymentListItem;
+  initialAttendanceId?: string;
   options: PaymentFormOptions;
   isPending: boolean;
   onSubmit: (data: PaymentFormData) => void;
@@ -56,6 +57,7 @@ function formatAttendanceOption(attendance: PaymentAttendanceOption): string {
 
 export function PaymentForm({
   payment,
+  initialAttendanceId,
   options,
   isPending,
   onSubmit,
@@ -64,7 +66,7 @@ export function PaymentForm({
   const form = useForm<PaymentFormInput, undefined, PaymentFormData>({
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
-      attendanceId: payment?.attendance.id ?? "",
+      attendanceId: payment?.attendance.id ?? initialAttendanceId ?? "",
       status: payment?.status ?? "PENDENTE",
       paidAt: toLocalDateTimeInput(payment?.paidAt),
     },
@@ -83,7 +85,11 @@ export function PaymentForm({
               <FormLabel>Atendimento</FormLabel>
               <select
                 {...field}
-                disabled={isPending || options.attendances.length === 0}
+                disabled={
+                  isPending ||
+                  options.attendances.length === 0 ||
+                  initialAttendanceId !== undefined
+                }
                 className={selectClassName}
                 aria-invalid={Boolean(form.formState.errors.attendanceId)}
               >

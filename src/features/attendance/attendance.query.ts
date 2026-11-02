@@ -45,6 +45,7 @@ export type AppointmentStatusValue = keyof typeof AppointmentStatus;
 
 export interface AttendanceWorkspace {
   id: string;
+  canCreateClientRecord: boolean;
   status: AttendanceStatusValue;
   startedAt: Date | null;
   completedAt: Date | null;

@@ -15,16 +15,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AttendanceWorkspace } from "./attendance.query";
 import { AttendanceWorkspace as AttendanceWorkspaceView } from "./attendance-workspace";
 
-const { getAttendanceWorkspace } = vi.hoisted(() => ({
+const actions = vi.hoisted(() => ({
   getAttendanceWorkspace: vi.fn(),
+  getAttendanceFormOptions: vi.fn(),
+  updateAttendanceAction: vi.fn(),
+  completeAttendanceAction: vi.fn(),
+  createClientRecordAction: vi.fn(),
+  getClientRecordFormOptions: vi.fn(),
 }));
 
 vi.mock("./attendance.actions", () => ({
-  getAttendanceWorkspace,
+  getAttendanceWorkspace: actions.getAttendanceWorkspace,
+  getAttendanceFormOptions: actions.getAttendanceFormOptions,
+  updateAttendanceAction: actions.updateAttendanceAction,
+  completeAttendanceAction: actions.completeAttendanceAction,
+}));
+
+vi.mock("@/features/client-record/client-record.actions", () => ({
+  createClientRecordAction: actions.createClientRecordAction,
+  getClientRecordFormOptions: actions.getClientRecordFormOptions,
 }));
 
 const workspace: AttendanceWorkspace = {
   id: "attendance-current",
+  canCreateClientRecord: true,
   status: "IN_PROGRESS",
   startedAt: new Date("2032-04-05T10:00:00.000Z"),
   completedAt: null,
@@ -86,11 +100,39 @@ function renderWorkspace() {
 
 describe("Attendance workspace", () => {
   beforeEach(() => {
-    getAttendanceWorkspace.mockReset();
-    getAttendanceWorkspace.mockResolvedValue(workspace);
+    actions.getAttendanceWorkspace.mockReset();
+    actions.getAttendanceWorkspace.mockResolvedValue(workspace);
+    actions.getAttendanceFormOptions.mockReset();
+    actions.getAttendanceFormOptions.mockResolvedValue({
+      appointments: [
+        {
+          id: "appointment-current",
+          startAt: new Date("2032-04-05T10:00:00.000Z"),
+          endAt: new Date("2032-04-05T11:00:00.000Z"),
+          clientName: "Ana Cliente",
+          professionalName: "Bruno Profissional",
+          serviceName: "Corte",
+        },
+      ],
+    });
+    actions.updateAttendanceAction.mockReset().mockResolvedValue(undefined);
+    actions.completeAttendanceAction.mockReset().mockResolvedValue(undefined);
+    actions.createClientRecordAction.mockReset().mockResolvedValue(undefined);
+    actions.getClientRecordFormOptions.mockReset().mockResolvedValue({
+      clients: [{ id: "client-1", name: "Ana Cliente" }],
+      attendances: [
+        {
+          id: "attendance-current",
+          status: "IN_PROGRESS",
+          startAt: new Date("2032-04-05T10:00:00.000Z"),
+          professionalName: "Bruno Profissional",
+          serviceName: "Corte",
+        },
+      ],
+    });
   });
 
-  it("shows attendance details and expandable client history and records without mutation controls", async () => {
+  it("shows attendance details and expandable client history and records", async () => {
     renderWorkspace();
 
     const attendancePanel = await screen.findByRole("tabpanel", {
@@ -124,12 +166,84 @@ describe("Attendance workspace", () => {
     expect(screen.getByText("Conteúdo confidencial do prontuário")).toBeTruthy();
     fireEvent.click(recordSummary);
     await waitFor(() => expect(recordDetails.open).toBe(false));
-    expect(screen.queryByRole("button", { name: /editar|excluir/i })).toBeNull();
-    expect(getAttendanceWorkspace).toHaveBeenCalledWith({ id: workspace.id });
+    expect(
+      screen.getByRole("button", { name: "Editar atendimento" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Concluir atendimento" }),
+    ).toBeTruthy();
+    expect(actions.getAttendanceWorkspace).toHaveBeenCalledWith({
+      id: workspace.id,
+    });
+  });
+
+  it("updates attendance through the existing form", async () => {
+    renderWorkspace();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Editar atendimento" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Salvar alterações" }),
+    );
+
+    await waitFor(() => {
+      expect(actions.updateAttendanceAction).toHaveBeenCalledWith({
+        id: workspace.id,
+        appointmentId: workspace.appointment.id,
+        status: workspace.status,
+        notes: workspace.notes,
+      }, expect.anything());
+    });
+  });
+
+  it("creates a client record linked to the workspace client and attendance", async () => {
+    renderWorkspace();
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Prontuário" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Criar ficha" }));
+    fireEvent.change(
+      await screen.findByPlaceholderText("Conteúdo da ficha do cliente"),
+      { target: { value: "Novo registro clínico" } },
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Cadastrar" }));
+
+    await waitFor(() => {
+      expect(actions.createClientRecordAction).toHaveBeenCalledWith({
+        clientId: workspace.appointment.client.id,
+        attendanceId: workspace.id,
+        content: "Novo registro clínico",
+      }, expect.anything());
+    });
+  });
+
+  it("completes an in-progress attendance and offers the associated payment", async () => {
+    renderWorkspace();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Concluir atendimento" }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Concluir atendimento",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(actions.completeAttendanceAction).toHaveBeenCalledWith({
+        id: workspace.id,
+      }, expect.anything());
+    });
+    expect(
+      await screen.findByRole("link", { name: "Acessar pagamento" }),
+    ).toHaveAttribute(
+      "href",
+      `/payments?attendanceId=${workspace.id}`,
+    );
   });
 
   it("shows an empty state when the attendance is unavailable", async () => {
-    getAttendanceWorkspace.mockResolvedValue(null);
+    actions.getAttendanceWorkspace.mockResolvedValue(null);
     renderWorkspace();
 
     expect(await screen.findByText("Atendimento não encontrado")).toBeTruthy();

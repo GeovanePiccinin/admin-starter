@@ -19,8 +19,12 @@ import {
 } from "./attendance.schema";
 
 interface AttendanceFormProps {
-  attendance?: AttendanceListItem;
+  attendance?: Pick<
+    AttendanceListItem,
+    "id" | "status" | "startedAt" | "completedAt" | "notes" | "appointment"
+  >;
   appointments: AttendanceAppointmentOption[];
+  allowCompletion?: boolean;
   isPending: boolean;
   onSubmit: (data: AttendanceFormData) => void;
   onCancel: () => void;
@@ -46,13 +50,20 @@ function formatAppointmentOption(appointment: AttendanceAppointmentOption) {
 
 function allowedStatuses(
   currentStatus: keyof typeof AttendanceStatus | undefined,
+  allowCompletion: boolean,
 ): (keyof typeof AttendanceStatus)[] {
   if (!currentStatus) {
     return ["SCHEDULED"];
   }
 
-  const statuses = Object.values(AttendanceStatus);
+  const statuses = Object.values(AttendanceStatus).filter(
+    (status) => allowCompletion || status !== "COMPLETED",
+  );
   const currentIndex = statuses.indexOf(currentStatus);
+
+  if (currentIndex === -1) {
+    return [currentStatus];
+  }
 
   return statuses.slice(currentIndex, currentIndex + 2);
 }
@@ -60,6 +71,7 @@ function allowedStatuses(
 export function AttendanceForm({
   attendance,
   appointments,
+  allowCompletion = true,
   isPending,
   onSubmit,
   onCancel,
@@ -73,7 +85,7 @@ export function AttendanceForm({
     },
   });
 
-  const statuses = allowedStatuses(attendance?.status);
+  const statuses = allowedStatuses(attendance?.status, allowCompletion);
   const startedAt = attendance?.startedAt;
   const completedAt = attendance?.completedAt;
 
