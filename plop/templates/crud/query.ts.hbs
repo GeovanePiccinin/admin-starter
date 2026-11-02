@@ -1,7 +1,4 @@
 import { z } from "zod";
-{{#each enumNames}}
-import type { {{this}} } from "@/generated/prisma/enums";
-{{/each}}
 
 export const {{camelCase entityName}}ListQuerySchema = z.object({
   search: z.string().trim().max(100).default(""),

@@ -159,6 +159,11 @@ export function {{pascalCase entityName}}Container() {
   });
   const isFormPending = createMutation.isPending || updateMutation.isPending;
 
+  function openCreateForm() {
+    setEditingRecord(undefined);
+    setFormOpen(true);
+  }
+
   function handleFormSubmit(data: Create{{pascalCase entityName}}Data) {
     if (editingRecord) {
       updateMutation.mutate({ id: editingRecord.id, ...data });
@@ -192,41 +197,49 @@ export function {{pascalCase entityName}}Container() {
             }).format(value)
           : "—";
 {{else}}
+{{#if isString}}
         return value == null || value === "" ? "—" : String(value);
+{{else}}
+        return value == null ? "—" : String(value);
+{{/if}}
 {{/if}}
       },
     }),
 {{/each}}
-    columnHelper.display({
-      id: "actions",
-      header: "Ações",
-      enableSorting: false,
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              setEditingRecord(row.original);
-              setFormOpen(true);
-            }}
-            aria-label={`Editar ${row.original.id}`}
-          >
-            <Pencil className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setDeletingRecord(row.original)}
-            aria-label={`Excluir ${row.original.id}`}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
-      ),
-    }),
+    ...(recordsQuery.data?.canManage
+      ? [
+          columnHelper.display({
+            id: "actions",
+            header: "Ações",
+            enableSorting: false,
+            cell: ({ row }) => (
+              <div className="flex items-center justify-end gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setEditingRecord(row.original);
+                    setFormOpen(true);
+                  }}
+                  aria-label={`Editar ${row.original.id}`}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setDeletingRecord(row.original)}
+                  aria-label={`Excluir ${row.original.id}`}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ),
+          }),
+        ]
+      : []),
   ]);
 
   if (recordsQuery.isPending && !recordsQuery.data) {
@@ -235,17 +248,15 @@ export function {{pascalCase entityName}}Container() {
         <RecordHeader
           pluralLabel="{{pluralLabel}}"
           singularLabel="{{singularLabel}}"
-          onCreate={() => {
-            setEditingRecord(undefined);
-            setFormOpen(true);
-          }}
+          canCreate={false}
+          onCreate={() => openCreateForm()}
         />
         <SearchInput
           value={search}
           onChange={setSearch}
           placeholder="Pesquisar {{pluralLabel}}..."
         />
-        <DataTableSkeleton columns={{{tableColumnCount}}} rows={PAGE_SIZE} />
+        <DataTableSkeleton columns={{{tableColumnCountExpression}}} rows={PAGE_SIZE} />
       </div>
     );
   }
@@ -256,10 +267,8 @@ export function {{pascalCase entityName}}Container() {
         <RecordHeader
           pluralLabel="{{pluralLabel}}"
           singularLabel="{{singularLabel}}"
-          onCreate={() => {
-            setEditingRecord(undefined);
-            setFormOpen(true);
-          }}
+          canCreate={false}
+          onCreate={() => openCreateForm()}
         />
         <ErrorState
           title="Não foi possível carregar {{pluralLabel}}."
@@ -292,10 +301,8 @@ export function {{pascalCase entityName}}Container() {
         <RecordHeader
           pluralLabel="{{pluralLabel}}"
           singularLabel="{{singularLabel}}"
-          onCreate={() => {
-            setEditingRecord(undefined);
-            setFormOpen(true);
-          }}
+          canCreate={data.canCreate}
+          onCreate={() => openCreateForm()}
         />
         <SearchInput
           value={search}
@@ -315,13 +322,10 @@ export function {{pascalCase entityName}}Container() {
                 : "Cadastre o primeiro registro para começar."
             }
             action={
-              !debouncedSearch ? (
+              !debouncedSearch && data.canCreate ? (
                 <Button
                   type="button"
-                  onClick={() => {
-                    setEditingRecord(undefined);
-                    setFormOpen(true);
-                  }}
+                  onClick={openCreateForm}
                 >
                   <Plus />
                   Novo {{singularLabel}}
@@ -397,12 +401,14 @@ export function {{pascalCase entityName}}Container() {
 interface RecordHeaderProps {
   pluralLabel: string;
   singularLabel: string;
+  canCreate: boolean;
   onCreate: () => void;
 }
 
 function RecordHeader({
   pluralLabel,
   singularLabel,
+  canCreate,
   onCreate,
 }: RecordHeaderProps) {
   return (
@@ -412,10 +418,12 @@ function RecordHeader({
           Gerencie {pluralLabel.toLowerCase()}.
         </p>
       </div>
-      <Button type="button" onClick={onCreate}>
-        <Plus />
-        Novo {singularLabel.toLowerCase()}
-      </Button>
+      {canCreate ? (
+        <Button type="button" onClick={onCreate}>
+          <Plus />
+          Novo {singularLabel.toLowerCase()}
+        </Button>
+      ) : null}
     </div>
   );
 }

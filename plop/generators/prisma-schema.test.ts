@@ -38,7 +38,18 @@ model User {
   passwordHash String
 }
 
+model Appointment {
+  id             String @id @default(cuid())
+  tenantId       String
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id])
+}
+
 model Tenant {
+  id String @id
+}
+
+model Professional {
   id String @id
 }
 
@@ -85,6 +96,12 @@ describe("parsePrismaSchema", () => {
         fields: [{ name: "passwordHash", type: "String", optional: false }],
       },
     ]);
+  });
+
+  it("does not offer models with tenant-scoped foreign-key relations", () => {
+    expect(parsePrismaSchema(schema).map((model) => model.name)).not.toContain(
+      "Appointment",
+    );
   });
 
   it("reports unsupported scalar values instead of generating partial CRUDs", () => {

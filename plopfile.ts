@@ -8,6 +8,7 @@ import {
   parsePrismaSchema,
   type PrismaSchemaField,
 } from "./plop/generators/prisma-schema.ts";
+import { getCrudAccessPolicy } from "./plop/generators/crud-policy.ts";
 
 interface CrudAnswers {
   modelName: string;
@@ -23,6 +24,7 @@ interface TemplateField extends PrismaSchemaField {
   isEnum: boolean;
   isLongText: boolean;
   isNumeric: boolean;
+  isString: boolean;
   inputType: string;
   listType: string;
   zodSchema: string;
@@ -123,13 +125,23 @@ function literal(value: string): string {
   return JSON.stringify(value);
 }
 
-function getZodSchema(field: PrismaSchemaField, label: string): string {
+function getZodSchema(
+  field: PrismaSchemaField,
+  label: string,
+  entityName: string,
+): string {
   let schema: string;
 
   switch (field.type) {
     case "String":
       schema = "z.string().trim()";
-      if (!field.optional) {
+      if (field.name === "email") {
+        schema += `.email(${literal("Informe um e-mail válido.")})`;
+      } else if (field.name === "name" && entityName === "Service") {
+        schema += `.min(2, ${literal("O nome deve possuir pelo menos 2 caracteres.")}).max(100, ${literal("O nome deve possuir no máximo 100 caracteres.")})`;
+      } else if (field.name === "description" && entityName === "Service") {
+        schema += `.max(500, ${literal("A descrição deve possuir no máximo 500 caracteres.")})`;
+      } else if (!field.optional) {
         schema += ".min(1, " + literal(`Informe ${label.toLowerCase()}.`) + ")";
       }
       break;
@@ -138,6 +150,9 @@ function getZodSchema(field: PrismaSchemaField, label: string): string {
       break;
     case "Int":
       schema = "z.coerce.number().int()";
+      if (field.name === "duration" && entityName === "Service") {
+        schema += `.positive(${literal("A duração deve ser maior que zero.")})`;
+      }
       break;
     case "BigInt":
       schema = "z.coerce.bigint()";
@@ -145,6 +160,9 @@ function getZodSchema(field: PrismaSchemaField, label: string): string {
     case "Float":
     case "Decimal":
       schema = "z.coerce.number()";
+      if (field.name === "price" && entityName === "Service") {
+        schema += `.nonnegative(${literal("O preço não pode ser negativo.")})`;
+      }
       break;
     case "DateTime":
       schema = "z.coerce.date()";
@@ -166,7 +184,7 @@ function getZodSchema(field: PrismaSchemaField, label: string): string {
 
 function getFieldDefault(field: PrismaSchemaField): string {
   if (field.type === "Boolean") {
-    return literal(String(field.defaultValue ?? false));
+    return JSON.stringify(field.defaultValue ?? false);
   }
 
   if (field.type === "DateTime") {
@@ -243,7 +261,9 @@ function createTemplateField(
           : "text";
   const mapExpression =
     field.type === "Decimal" || field.type === "BigInt"
-      ? `record.${field.name}.toString()`
+      ? field.optional
+        ? `record.${field.name} == null ? null : record.${field.name}.toString()`
+        : `record.${field.name}.toString()`
       : `record.${field.name}`;
   const writeExpression = field.optional
     ? isString
@@ -262,11 +282,13 @@ function createTemplateField(
     isEnum,
     isLongText,
     isNumeric,
+    isString,
     inputType,
     listType: getListType(field),
     zodSchema: getZodSchema(
       field,
       fieldLabels[field.name] ?? humanize(field.name),
+      entityName,
     ),
     formDefaultExpression,
     writeExpression,
@@ -286,12 +308,14 @@ function readScaffoldModels() {
 
   const unsupportedFields = getUnsupportedScalarFields(schema);
   const models = parsePrismaSchema(schema).filter(
-    (model) => !unsupportedFields.has(model.name),
+    (model) =>
+      !unsupportedFields.has(model.name) &&
+      getCrudAccessPolicy(model.name).scaffoldSupported,
   );
 
   if (models.length === 0) {
     throw new Error(
-      "Nenhum model tenant-scoped compatível foi encontrado em prisma/schema.prisma.",
+      "Nenhum model com política de acesso revisada e campos compatíveis foi encontrado em prisma/schema.prisma.",
     );
   }
 
@@ -382,6 +406,7 @@ function plopfile(plop: NodePlopAPI): void {
       const fields = model.fields.map((field) =>
         createTemplateField(field, model.name),
       );
+      const accessPolicy = getCrudAccessPolicy(model.name);
       const enumNames = [
         ...new Set(fields.filter((field) => field.isEnum).map((field) => field.type)),
       ];
@@ -417,7 +442,10 @@ function plopfile(plop: NodePlopAPI): void {
         defaultSortField,
         searchableFields: fields.filter((field) => field.type === "String"),
         hasSearchableFields: fields.some((field) => field.type === "String"),
+        readRequiresAdmin: accessPolicy.readRoles.length === 1,
+        createRequiresAdmin: accessPolicy.createRoles.length === 1,
         tableColumnCount: fields.length + 1,
+        tableColumnCountExpression: `{${fields.length + 1}}`,
       };
       const featureDirectory = join(
         "src",

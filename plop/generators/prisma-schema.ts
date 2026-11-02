@@ -88,6 +88,15 @@ export function parsePrismaSchema(schema: string): PrismaSchemaModel[] {
   const parsedModels: PrismaSchemaModel[] = [];
 
   for (const [modelName, body] of modelBlocks) {
+    const relationScalarFields = new Set(
+      [...body.matchAll(/@relation\([^)]*fields:\s*\[([^\]]+)\]/g)].flatMap(
+        (match) =>
+          match[1]
+            ?.split(",")
+            .map((field) => field.trim())
+            .filter(Boolean) ?? [],
+      ),
+    );
     const rawFields = [...body.matchAll(
       /^[ \t]{2,}(\w+)[ \t]+([A-Za-z]\w*)(\?)?(\[\])?(?:[ \t]+(.+))?$/gm,
     )];
@@ -122,6 +131,9 @@ export function parsePrismaSchema(schema: string): PrismaSchemaModel[] {
     const fields = parsedFields.filter(
       (field) => !generatedFieldNames.has(field.name),
     );
+    const hasForeignKeyFields = fields.some((field) =>
+      relationScalarFields.has(field.name),
+    );
     const hasStringId = rawFields.some(
       (match) =>
         match[1] === "id" &&
@@ -139,6 +151,7 @@ export function parsePrismaSchema(schema: string): PrismaSchemaModel[] {
     if (
       hasStringId &&
       hasStringTenantId &&
+      !hasForeignKeyFields &&
       fields.length > 0
     ) {
       parsedModels.push({ name: modelName, fields });

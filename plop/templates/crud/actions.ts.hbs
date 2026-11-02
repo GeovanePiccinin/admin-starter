@@ -1,7 +1,9 @@
 "use server";
 
-import { auth } from "@/auth";
-
+import {
+  requireAuthenticatedActor,
+  requireRole,
+} from "@/lib/auth/get-authenticated-user";
 import { logger } from "@/lib/logger/logger";
 
 import {
@@ -22,41 +24,43 @@ import {
   type {{pascalCase entityName}}ListResult,
 } from "./{{kebabCase entityName}}.query";
 
-async function getTenantId(): Promise<string> {
-  const session = await auth();
-
-  const tenantId = session?.user?.tenantId;
-
-  if (!tenantId) {
-    throw new Error("Usuário não autenticado.");
-  }
-
-  return tenantId;
-}
-
 export async function get{{pascalCase pluralName}}(
   input: unknown,
-): Promise<{{pascalCase entityName}}ListResult> {
-  const tenantId = await getTenantId();
+): Promise<{{pascalCase entityName}}ListResult & {
+  canCreate: boolean;
+  canManage: boolean;
+}> {
+  const actor = await requireAuthenticatedActor();
+{{#if readRequiresAdmin}}
+  requireRole(actor, "ADMIN");
+{{/if}}
 
   const query = {{camelCase entityName}}ListQuerySchema.parse(input);
+  const result = await find{{pascalCase pluralName}}(actor.tenantId, query);
 
-  return find{{pascalCase pluralName}}(tenantId, query);
+  return {
+    ...result,
+    canCreate: {{#if createRequiresAdmin}}actor.role === "ADMIN"{{else}}true{{/if}},
+    canManage: actor.role === "ADMIN",
+  };
 }
 
 export async function create{{pascalCase entityName}}Action(
   input: unknown,
 ): Promise<void> {
-  const tenantId = await getTenantId();
+  const actor = await requireAuthenticatedActor();
+{{#if createRequiresAdmin}}
+  requireRole(actor, "ADMIN");
+{{/if}}
   const data = create{{pascalCase entityName}}Schema.parse(input);
 
   try {
-    await create{{pascalCase entityName}}(tenantId, data);
+    await create{{pascalCase entityName}}(actor.tenantId, data);
 
     logger.info(
       {
         operation: "{{camelCase entityName}}.create",
-        tenantId,
+        tenantId: actor.tenantId,
       },
       "{{pascalCase entityName}} created",
     );
@@ -64,7 +68,7 @@ export async function create{{pascalCase entityName}}Action(
     logger.error(
       {
         operation: "{{camelCase entityName}}.create",
-        tenantId,
+        tenantId: actor.tenantId,
         error,
       },
       "Failed to create {{camelCase entityName}}",
@@ -77,16 +81,17 @@ export async function create{{pascalCase entityName}}Action(
 export async function update{{pascalCase entityName}}Action(
   input: unknown,
 ): Promise<void> {
-  const tenantId = await getTenantId();
+  const actor = await requireAuthenticatedActor();
+  requireRole(actor, "ADMIN");
   const data = update{{pascalCase entityName}}Schema.parse(input);
 
   try {
-    await update{{pascalCase entityName}}(tenantId, data);
+    await update{{pascalCase entityName}}(actor.tenantId, data);
 
     logger.info(
       {
         operation: "{{camelCase entityName}}.update",
-        tenantId,
+        tenantId: actor.tenantId,
         {{camelCase entityName}}Id: data.id,
       },
       "{{pascalCase entityName}} updated",
@@ -95,7 +100,7 @@ export async function update{{pascalCase entityName}}Action(
     logger.error(
       {
         operation: "{{camelCase entityName}}.update",
-        tenantId,
+        tenantId: actor.tenantId,
         {{camelCase entityName}}Id: data.id,
         error,
       },
@@ -109,16 +114,17 @@ export async function update{{pascalCase entityName}}Action(
 export async function delete{{pascalCase entityName}}Action(
   input: unknown,
 ): Promise<void> {
-  const tenantId = await getTenantId();
+  const actor = await requireAuthenticatedActor();
+  requireRole(actor, "ADMIN");
   const data = delete{{pascalCase entityName}}Schema.parse(input);
 
   try {
-    await delete{{pascalCase entityName}}(tenantId, data.id);
+    await delete{{pascalCase entityName}}(actor.tenantId, data.id);
 
     logger.info(
       {
         operation: "{{camelCase entityName}}.delete",
-        tenantId,
+        tenantId: actor.tenantId,
         {{camelCase entityName}}Id: data.id,
       },
       "{{pascalCase entityName}} deleted",
@@ -127,7 +133,7 @@ export async function delete{{pascalCase entityName}}Action(
     logger.error(
       {
         operation: "{{camelCase entityName}}.delete",
-        tenantId,
+        tenantId: actor.tenantId,
         {{camelCase entityName}}Id: data.id,
         error,
       },
