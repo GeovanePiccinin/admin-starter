@@ -2,7 +2,7 @@
  * @vitest-environment node
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { prisma } from "@/lib/db/prisma";
 
@@ -13,27 +13,6 @@ import { createServiceSchema } from "./service.schema";
 describe("Service", () => {
   let tenantAId: string;
   let tenantBId: string;
-
-  beforeEach(async () => {
-    await prisma.service.deleteMany();
-
-    await prisma.tenant.deleteMany();
-
-    const tenantA = await prisma.tenant.create({
-      data: {
-        name: "Tenant A",
-      },
-    });
-
-    const tenantB = await prisma.tenant.create({
-      data: {
-        name: "Tenant B",
-      },
-    });
-
-    tenantAId = tenantA.id;
-    tenantBId = tenantB.id;
-  });
 
   describe("schema", () => {
     it("accepts valid data", () => {
@@ -62,6 +41,33 @@ describe("Service", () => {
   });
 
   describe("repository", () => {
+    beforeEach(async () => {
+      const tenantA = await prisma.tenant.create({
+        data: {
+          name: `Service Tenant A ${crypto.randomUUID()}`,
+        },
+      });
+
+      const tenantB = await prisma.tenant.create({
+        data: {
+          name: `Service Tenant B ${crypto.randomUUID()}`,
+        },
+      });
+
+      tenantAId = tenantA.id;
+      tenantBId = tenantB.id;
+    });
+
+    afterEach(async () => {
+      const tenantIds = [tenantAId, tenantBId];
+      await prisma.service.deleteMany({
+        where: { tenantId: { in: tenantIds } },
+      });
+      await prisma.tenant.deleteMany({
+        where: { id: { in: tenantIds } },
+      });
+    });
+
     it("creates and lists a service", async () => {
       await createService(tenantAId, {
         name: "Corte masculino",

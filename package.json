@@ -3,19 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "postinstall": "prisma generate",
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "postinstall": "pnpm run db:generate",
+    "dev": "tsx scripts/run-env.ts development node_modules/next/dist/bin/next dev",
+    "dev:test": "tsx scripts/run-env.ts test node_modules/next/dist/bin/next dev",
+    "build": "tsx scripts/run-env.ts production node_modules/next/dist/bin/next build",
+    "start": "tsx scripts/run-env.ts production node_modules/next/dist/bin/next start",
     "lint": "eslint",
-    "db:check": "tsx scripts/check-db.ts",
-    "db:seed": "tsx prisma/seed.ts",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "plop": "plop"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "db:generate": "tsx scripts/run-env.ts schema node_modules/prisma/build/index.js generate",
+    "db:check:development": "tsx scripts/run-env.ts development node_modules/tsx/dist/cli.mjs scripts/check-db.ts",
+    "db:check:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs scripts/check-db.ts",
+    "db:migrate:development": "tsx scripts/run-env.ts development node_modules/tsx/dist/cli.mjs scripts/prisma-command.ts migrate deploy",
+    "db:migrate:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs scripts/prisma-command.ts migrate deploy",
+    "db:migrate:production": "tsx scripts/run-env.ts production node_modules/tsx/dist/cli.mjs scripts/prisma-command.ts migrate deploy",
+    "db:seed:development": "tsx scripts/run-env.ts development node_modules/tsx/dist/cli.mjs prisma/seed.ts",
+    "db:seed:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs prisma/seed.ts",
+    "db:reset:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs scripts/reset-test-db.ts",
+    "test": "tsx scripts/run-env.ts test node_modules/vitest/vitest.mjs",
+    "test:run": "tsx scripts/run-env.ts test node_modules/vitest/vitest.mjs run"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

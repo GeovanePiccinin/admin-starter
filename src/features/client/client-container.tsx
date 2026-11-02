@@ -22,6 +22,7 @@ import { useListControls } from "@/hooks/use-list-controls";
 import {
   createClientAction,
   deleteClientAction,
+  getClientAssignmentOptions,
   getClients,
   updateClientAction,
 } from "./client.actions";
@@ -99,6 +100,16 @@ export function ClientContainer() {
     placeholderData: (previousData) => previousData,
   });
 
+  const canManage = clientsQuery.data?.canManage === true;
+  const assignmentOptionsQuery = useQuery({
+    queryKey: ["client-assignment-options", editingClient?.id],
+    queryFn: () =>
+      getClientAssignmentOptions(
+        editingClient ? { clientId: editingClient.id } : {},
+      ),
+    enabled: formOpen && canManage,
+  });
+
   const createMutation = useMutation({
     mutationFn: createClientAction,
     onSuccess: async () => {
@@ -107,6 +118,9 @@ export function ClientContainer() {
 
       await queryClient.invalidateQueries({
         queryKey: ["clients"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["client-assignment-options"],
       });
     },
     onError: (error) => {
@@ -127,6 +141,9 @@ export function ClientContainer() {
 
       await queryClient.invalidateQueries({
         queryKey: ["clients"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["client-assignment-options"],
       });
     },
     onError: (error) => {
@@ -213,34 +230,38 @@ export function ClientContainer() {
       enableSorting: true,
       cell: ({ getValue }) => getValue() ?? "—",
     }),
-    columnHelper.display({
-      id: "actions",
-      header: "Ações",
-      enableSorting: false,
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => handleEdit(row.original)}
-            aria-label={`Editar ${row.original.name}`}
-          >
-            <Pencil className="size-4" />
-          </Button>
+    ...(canManage
+      ? [
+          columnHelper.display({
+            id: "actions",
+            header: "Ações",
+            enableSorting: false,
+            cell: ({ row }) => (
+              <div className="flex items-center justify-end gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleEdit(row.original)}
+                  aria-label={`Editar ${row.original.name}`}
+                >
+                  <Pencil className="size-4" />
+                </Button>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setDeletingClient(row.original)}
-            aria-label={`Excluir ${row.original.name}`}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
-      ),
-    }),
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setDeletingClient(row.original)}
+                  aria-label={`Excluir ${row.original.name}`}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ),
+          }),
+        ]
+      : []),
   ]);
 
   if (clientsQuery.isPending && !clientsQuery.data) {
@@ -375,16 +396,59 @@ export function ClientContainer() {
         }
       >
         {formOpen ? (
-          <ClientForm
-            key={editingClient?.id ?? "new"}
-            client={editingClient}
-            isPending={isFormPending}
-            onSubmit={handleFormSubmit}
-            onCancel={() => {
-              setFormOpen(false);
-              setEditingClient(undefined);
-            }}
-          />
+          canManage ? (
+            assignmentOptionsQuery.isPending ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Carregando profissionais...
+              </p>
+            ) : assignmentOptionsQuery.isError ? (
+              <ErrorState
+                title="Não foi possível carregar os profissionais."
+                description="Tente novamente para continuar."
+                action={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      void assignmentOptionsQuery.refetch();
+                    }}
+                  >
+                    Tentar novamente
+                  </Button>
+                }
+              />
+            ) : assignmentOptionsQuery.data ? (
+              <ClientForm
+                key={`${editingClient?.id ?? "new"}:${assignmentOptionsQuery.data.professionalIds.join(",")}`}
+                client={editingClient}
+                professionals={assignmentOptionsQuery.data.professionals}
+                assignedProfessionalIds={
+                  assignmentOptionsQuery.data.professionalIds
+                }
+                canAssignProfessionals
+                isPending={isFormPending}
+                onSubmit={handleFormSubmit}
+                onCancel={() => {
+                  setFormOpen(false);
+                  setEditingClient(undefined);
+                }}
+              />
+            ) : null
+          ) : (
+            <ClientForm
+              key={editingClient?.id ?? "new"}
+              client={editingClient}
+              professionals={[]}
+              assignedProfessionalIds={[]}
+              canAssignProfessionals={false}
+              isPending={isFormPending}
+              onSubmit={handleFormSubmit}
+              onCancel={() => {
+                setFormOpen(false);
+                setEditingClient(undefined);
+              }}
+            />
+          )
         ) : null}
       </CrudFormDialog>
 

@@ -124,6 +124,24 @@ export async function findAttendances(
         }
       : {}),
   };
+  const select = {
+    ...attendanceSelect,
+    ...(professionalScopeId
+      ? {
+          clientRecords: {
+            where: {
+              client: {
+                professionalAssignments: {
+                  some: { tenantId, professionalId: professionalScopeId },
+                },
+              },
+            },
+            select: { id: true },
+            take: 1,
+          },
+        }
+      : {}),
+  } satisfies Prisma.AttendanceSelect;
 
   const [attendances, total] = await prisma.$transaction([
     prisma.attendance.findMany({
@@ -131,7 +149,7 @@ export async function findAttendances(
       orderBy: getOrderBy(sortBy, sortDirection),
       skip: (page - 1) * pageSize,
       take: pageSize,
-      select: attendanceSelect,
+      select,
     }),
     prisma.attendance.count({ where }),
   ]);
@@ -240,11 +258,24 @@ export async function findAttendanceWorkspace(
       },
     }),
     prisma.clientRecord.findMany({
-      where: { tenantId, clientId },
+      where: {
+        tenantId,
+        clientId,
+        ...(professionalScopeId
+          ? {
+              client: {
+                professionalAssignments: {
+                  some: { tenantId, professionalId: professionalScopeId },
+                },
+              },
+            }
+          : {}),
+      },
       orderBy: [{ createdAt: "desc" }, { id: "asc" }],
       select: {
         id: true,
         content: true,
+        authorName: true,
         createdAt: true,
         updatedAt: true,
         attendance: {
@@ -285,6 +316,7 @@ export async function findAttendanceWorkspace(
     clientRecords: clientRecords.map((record) => ({
       id: record.id,
       content: record.content,
+      authorName: record.authorName,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       attendance: record.attendance
@@ -558,8 +590,14 @@ export async function updateAttendance(
       professionalScopeId,
     );
 
-    await transaction.attendance.update({
-      where: { id: input.id },
+    const result = await transaction.attendance.updateMany({
+      where: {
+        id: input.id,
+        tenantId,
+        ...(professionalScopeId
+          ? { appointment: { professionalId: professionalScopeId } }
+          : {}),
+      },
       data: {
         appointmentId: input.appointmentId,
         status: timestampData.status,
@@ -568,6 +606,10 @@ export async function updateAttendance(
         notes: input.notes || null,
       },
     });
+
+    if (result.count === 0) {
+      throw new Error("Atendimento não encontrado.");
+    }
   });
 }
 

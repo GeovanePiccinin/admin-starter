@@ -17,6 +17,7 @@ import type {
 const clientRecordSelect = {
   id: true,
   content: true,
+  authorName: true,
   createdAt: true,
   updatedAt: true,
   client: {
@@ -53,12 +54,22 @@ function getOrderBy(
 export async function findClientRecords(
   tenantId: string,
   query: ClientRecordListQuery,
+  professionalScopeId?: string,
 ): Promise<ClientRecordListResult> {
   const { search, page, pageSize, sortBy, sortDirection, attendanceLink } =
     query;
 
   const where: Prisma.ClientRecordWhereInput = {
     tenantId,
+    ...(professionalScopeId
+      ? {
+          client: {
+            professionalAssignments: {
+              some: { tenantId, professionalId: professionalScopeId },
+            },
+          },
+        }
+      : {}),
     ...(attendanceLink === "linked"
       ? { attendanceId: { not: null } }
       : attendanceLink === "unlinked"
@@ -88,6 +99,7 @@ export async function findClientRecords(
   const items: ClientRecordListItem[] = records.map((record) => ({
     id: record.id,
     content: record.content,
+    authorName: record.authorName,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     client: record.client,
@@ -112,10 +124,20 @@ export async function findClientRecords(
 export async function findClientRecordFormOptions(
   tenantId: string,
   clientId?: string,
+  professionalScopeId?: string,
 ): Promise<ClientRecordFormOptions> {
   const [clients, attendances] = await Promise.all([
     prisma.client.findMany({
-      where: { tenantId },
+      where: {
+        tenantId,
+        ...(professionalScopeId
+          ? {
+              professionalAssignments: {
+                some: { tenantId, professionalId: professionalScopeId },
+              },
+            }
+          : {}),
+      },
       orderBy: [{ name: "asc" }, { id: "asc" }],
       select: { id: true, name: true },
     }),
@@ -123,7 +145,22 @@ export async function findClientRecordFormOptions(
       ? prisma.attendance.findMany({
           where: {
             tenantId,
-            appointment: { clientId },
+            appointment: {
+              clientId,
+              ...(professionalScopeId
+                ? {
+                    professionalId: professionalScopeId,
+                    client: {
+                      professionalAssignments: {
+                        some: {
+                          tenantId,
+                          professionalId: professionalScopeId,
+                        },
+                      },
+                    },
+                  }
+                : {}),
+            },
           },
           orderBy: { appointment: { startAt: "desc" } },
           select: {
@@ -161,9 +198,20 @@ async function validateRelations(
   tenantId: string,
   clientId: string,
   attendanceId: string,
+  professionalScopeId?: string,
 ): Promise<void> {
   const client = await transaction.client.findFirst({
-    where: { id: clientId, tenantId },
+    where: {
+      id: clientId,
+      tenantId,
+      ...(professionalScopeId
+        ? {
+            professionalAssignments: {
+              some: { tenantId, professionalId: professionalScopeId },
+            },
+          }
+        : {}),
+    },
     select: { id: true },
   });
 
@@ -182,6 +230,9 @@ async function validateRelations(
       appointment: {
         tenantId,
         clientId,
+        ...(professionalScopeId
+          ? { professionalId: professionalScopeId }
+          : {}),
       },
     },
     select: { id: true },
@@ -197,6 +248,8 @@ async function validateRelations(
 export async function createClientRecord(
   tenantId: string,
   input: CreateClientRecordData,
+  professionalScopeId?: string,
+  author?: { professionalId: string; name: string },
 ): Promise<void> {
   await prisma.$transaction(async (transaction) => {
     await validateRelations(
@@ -204,6 +257,7 @@ export async function createClientRecord(
       tenantId,
       input.clientId,
       input.attendanceId,
+      professionalScopeId,
     );
 
     await transaction.clientRecord.create({
@@ -212,14 +266,17 @@ export async function createClientRecord(
         clientId: input.clientId,
         attendanceId: input.attendanceId || null,
         content: input.content,
+        authorProfessionalId: author?.professionalId ?? null,
+        authorName: author?.name ?? null,
       },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function updateClientRecord(
   tenantId: string,
   input: UpdateClientRecordData,
+  professionalScopeId?: string,
 ): Promise<void> {
   await prisma.$transaction(async (transaction) => {
     await validateRelations(
@@ -227,12 +284,22 @@ export async function updateClientRecord(
       tenantId,
       input.clientId,
       input.attendanceId,
+      professionalScopeId,
     );
 
     const result = await transaction.clientRecord.updateMany({
       where: {
         id: input.id,
         tenantId,
+        ...(professionalScopeId
+          ? {
+              client: {
+                professionalAssignments: {
+                  some: { tenantId, professionalId: professionalScopeId },
+                },
+              },
+            }
+          : {}),
       },
       data: {
         clientId: input.clientId,
@@ -244,17 +311,27 @@ export async function updateClientRecord(
     if (result.count === 0) {
       throw new Error("Ficha do cliente não encontrada.");
     }
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function deleteClientRecord(
   tenantId: string,
   clientRecordId: string,
+  professionalScopeId?: string,
 ): Promise<void> {
   const result = await prisma.clientRecord.deleteMany({
     where: {
       id: clientRecordId,
       tenantId,
+      ...(professionalScopeId
+        ? {
+            client: {
+              professionalAssignments: {
+                some: { tenantId, professionalId: professionalScopeId },
+              },
+            },
+          }
+        : {}),
     },
   });
 

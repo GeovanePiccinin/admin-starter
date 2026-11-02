@@ -1,9 +1,7 @@
 "use server";
 
-import { auth } from "@/auth";
-
-import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger/logger";
+import { requireAuthenticatedActor } from "@/lib/auth/get-authenticated-user";
 
 import {
   createAttendance,
@@ -27,35 +25,21 @@ import {
 } from "./attendance.schema";
 
 async function getAttendanceActor() {
-  const session = await auth();
-  const userId = session?.user?.id;
-  const tenantId = session?.user?.tenantId;
+  const actor = await requireAuthenticatedActor();
 
-  if (!userId || !tenantId) {
-    throw new Error("Usuário não autenticado.");
-  }
-
-  const user = await prisma.user.findFirst({
-    where: { id: userId, tenantId },
-    select: {
-      role: true,
-      professional: { select: { id: true } },
-    },
-  });
-
-  if (!user) {
-    throw new Error("Usuário não autenticado.");
-  }
-
-  if (user.role === "PROFESSIONAL" && !user.professional) {
+  if (actor.role === "PROFESSIONAL" && !actor.professionalId) {
     throw new Error("O perfil profissional não está configurado.");
   }
 
-  return {
-    tenantId,
-    role: user.role,
-    professionalId: user.professional?.id,
-  };
+  return actor;
+}
+
+function getProfessionalScope(
+  actor: Awaited<ReturnType<typeof getAttendanceActor>>,
+): string | undefined {
+  return actor.role === "PROFESSIONAL"
+    ? actor.professionalId ?? undefined
+    : undefined;
 }
 
 export async function getAttendances(
@@ -67,7 +51,7 @@ export async function getAttendances(
   return findAttendances(
     actor.tenantId,
     query,
-    actor.role === "PROFESSIONAL" ? actor.professionalId : undefined,
+    getProfessionalScope(actor),
   );
 }
 
@@ -80,7 +64,7 @@ export async function getAttendanceWorkspace(
   return findAttendanceWorkspace(
     actor.tenantId,
     query.id,
-    actor.role === "PROFESSIONAL" ? actor.professionalId : undefined,
+    getProfessionalScope(actor),
   );
 }
 
@@ -90,7 +74,7 @@ export async function getAttendanceFormOptions(input: unknown) {
 
   return findAttendanceFormOptions(
     actor.tenantId,
-    actor.role === "PROFESSIONAL" ? actor.professionalId : undefined,
+    getProfessionalScope(actor),
     parsedInput.attendanceId,
   );
 }
@@ -103,7 +87,7 @@ export async function createAttendanceAction(input: unknown): Promise<string> {
     const attendanceId = await createAttendance(
       actor.tenantId,
       data,
-      actor.role === "PROFESSIONAL" ? actor.professionalId : undefined,
+      getProfessionalScope(actor),
     );
 
     logger.info(
@@ -138,7 +122,7 @@ export async function updateAttendanceAction(input: unknown): Promise<void> {
     await updateAttendance(
       actor.tenantId,
       data,
-      actor.role === "PROFESSIONAL" ? actor.professionalId : undefined,
+      getProfessionalScope(actor),
     );
 
     logger.info(
@@ -172,7 +156,7 @@ export async function deleteAttendanceAction(input: unknown): Promise<void> {
     await deleteAttendance(
       actor.tenantId,
       data.id,
-      actor.role === "PROFESSIONAL" ? actor.professionalId : undefined,
+      getProfessionalScope(actor),
     );
 
     logger.info(

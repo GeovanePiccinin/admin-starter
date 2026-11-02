@@ -231,6 +231,11 @@ export function ClientRecordContainer() {
       header: "Cliente",
       enableSorting: true,
     }),
+    columnHelper.accessor("authorName", {
+      header: "Autor",
+      enableSorting: false,
+      cell: ({ getValue }) => getValue() ?? "Não informado",
+    }),
     columnHelper.accessor("content", {
       header: "Conteúdo",
       enableSorting: false,
@@ -297,7 +302,7 @@ export function ClientRecordContainer() {
           onChange={setSearch}
           placeholder="Pesquisar fichas..."
         />
-        <DataTableSkeleton columns={5} rows={PAGE_SIZE} />
+        <DataTableSkeleton columns={6} rows={PAGE_SIZE} />
       </div>
     );
   }

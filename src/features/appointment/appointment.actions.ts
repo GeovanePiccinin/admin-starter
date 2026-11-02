@@ -1,9 +1,7 @@
 "use server";
 
-import { auth } from "@/auth";
-
-import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger/logger";
+import { requireAuthenticatedActor } from "@/lib/auth/get-authenticated-user";
 
 import {
   createAppointment,
@@ -27,42 +25,21 @@ import {
 } from "./appointment.schema";
 
 async function getAppointmentActor() {
-  const session = await auth();
-  const userId = session?.user?.id;
-  const tenantId = session?.user?.tenantId;
+  const actor = await requireAuthenticatedActor();
 
-  if (!userId || !tenantId) {
-    throw new Error("Usuário não autenticado.");
-  }
-
-  const user = await prisma.user.findFirst({
-    where: {
-      id: userId,
-      tenantId,
-    },
-    select: {
-      role: true,
-      professional: {
-        select: {
-          id: true,
-        },
-      },
-    },
-  });
-
-  if (!user) {
-    throw new Error("Usuário não autenticado.");
-  }
-
-  if (user.role === "PROFESSIONAL" && !user.professional) {
+  if (actor.role === "PROFESSIONAL" && !actor.professionalId) {
     throw new Error("O perfil profissional não está configurado.");
   }
 
-  return {
-    tenantId,
-    role: user.role,
-    professionalId: user.professional?.id,
-  };
+  return actor;
+}
+
+function getProfessionalScope(
+  actor: Awaited<ReturnType<typeof getAppointmentActor>>,
+): string | undefined {
+  return actor.role === "PROFESSIONAL"
+    ? actor.professionalId ?? undefined
+    : undefined;
 }
 
 export async function getAppointments(
@@ -73,7 +50,7 @@ export async function getAppointments(
   const result = await findAppointments(
     actor.tenantId,
     query,
-    actor.role === "PROFESSIONAL" ? actor.professionalId : undefined,
+    getProfessionalScope(actor),
   );
 
   return {
@@ -91,7 +68,7 @@ export async function getAppointmentCalendarEvents(
   return findAppointmentsInRange(
     actor.tenantId,
     query,
-    actor.role === "PROFESSIONAL" ? actor.professionalId : undefined,
+    getProfessionalScope(actor),
   );
 }
 
@@ -100,7 +77,7 @@ export async function getAppointmentFilterOptions() {
 
   return findAppointmentFilterOptions(
     actor.tenantId,
-    actor.role === "PROFESSIONAL" ? actor.professionalId : undefined,
+    getProfessionalScope(actor),
   );
 }
 
@@ -109,7 +86,7 @@ export async function getAppointmentFormOptions() {
 
   const options = await findAppointmentFormOptions(
     actor.tenantId,
-    actor.role === "PROFESSIONAL" ? actor.professionalId : undefined,
+    getProfessionalScope(actor),
   );
 
   return {
@@ -122,8 +99,7 @@ export async function createAppointmentAction(input: unknown): Promise<void> {
   const actor = await getAppointmentActor();
   const data = createAppointmentSchema.parse(input);
 
-  const professionalId =
-    actor.role === "PROFESSIONAL" ? actor.professionalId : data.professionalId;
+  const professionalId = getProfessionalScope(actor) ?? data.professionalId;
 
   if (!professionalId) {
     throw new Error("Selecione um profissional para o agendamento.");
@@ -175,7 +151,7 @@ export async function updateAppointmentAction(input: unknown): Promise<void> {
         ...data,
         professionalId,
       },
-      actor.role === "PROFESSIONAL" ? actor.professionalId : undefined,
+      getProfessionalScope(actor),
     );
 
     logger.info(
@@ -209,7 +185,7 @@ export async function deleteAppointmentAction(input: unknown): Promise<void> {
     await deleteAppointment(
       actor.tenantId,
       data.id,
-      actor.role === "PROFESSIONAL" ? actor.professionalId : undefined,
+      getProfessionalScope(actor),
     );
 
     logger.info(

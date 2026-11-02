@@ -1,9 +1,7 @@
 "use server";
 
-import { auth } from "@/auth";
-
-import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger/logger";
+import { requireAuthenticatedActor } from "@/lib/auth/get-authenticated-user";
 
 import {
   createPayment,
@@ -24,39 +22,19 @@ import {
 } from "./payment.schema";
 
 async function getPaymentActor() {
-  const session = await auth();
-  const userId = session?.user?.id;
-  const tenantId = session?.user?.tenantId;
+  const actor = await requireAuthenticatedActor();
 
-  if (!userId || !tenantId) {
-    throw new Error("Usuário não autenticado.");
-  }
-
-  const user = await prisma.user.findFirst({
-    where: { id: userId, tenantId },
-    select: {
-      role: true,
-      professional: { select: { id: true } },
-    },
-  });
-
-  if (!user) {
-    throw new Error("Usuário não autenticado.");
-  }
-
-  if (user.role === "PROFESSIONAL" && !user.professional) {
+  if (actor.role === "PROFESSIONAL" && !actor.professionalId) {
     throw new Error("O perfil profissional não está configurado.");
   }
 
-  return {
-    tenantId,
-    role: user.role,
-    professionalId: user.professional?.id,
-  };
+  return actor;
 }
 
 function getProfessionalScope(actor: Awaited<ReturnType<typeof getPaymentActor>>) {
-  return actor.role === "PROFESSIONAL" ? actor.professionalId : undefined;
+  return actor.role === "PROFESSIONAL"
+    ? actor.professionalId ?? undefined
+    : undefined;
 }
 
 export async function getPayments(input: unknown): Promise<PaymentListResult> {

@@ -1,8 +1,9 @@
 "use server";
 
-import { auth } from "@/auth";
-
 import { logger } from "@/lib/logger/logger";
+import {
+  requireAuthenticatedActor,
+} from "@/lib/auth/get-authenticated-user";
 
 import {
   createClientRecord,
@@ -22,47 +23,84 @@ import {
   updateClientRecordSchema,
 } from "./client-record.schema";
 
-async function getTenantId(): Promise<string> {
-  const session = await auth();
-  const tenantId = session?.user?.tenantId;
+async function getClientRecordActor() {
+  const actor = await requireAuthenticatedActor();
 
-  if (!tenantId) {
-    throw new Error("Usuário não autenticado.");
+  if (actor.role === "PROFESSIONAL" && !actor.professionalId) {
+    throw new Error("O perfil profissional não está configurado.");
   }
 
-  return tenantId;
+  return actor;
+}
+
+function getProfessionalScope(
+  actor: Awaited<ReturnType<typeof getClientRecordActor>>,
+): string | undefined {
+  return actor.role === "PROFESSIONAL"
+    ? actor.professionalId ?? undefined
+    : undefined;
+}
+
+function getProfessionalAuthor(
+  actor: Awaited<ReturnType<typeof getClientRecordActor>>,
+): { professionalId: string; name: string } | undefined {
+  if (actor.role !== "PROFESSIONAL") {
+    return undefined;
+  }
+
+  if (!actor.professionalId) {
+    throw new Error("O perfil profissional não está configurado.");
+  }
+
+  return {
+    professionalId: actor.professionalId,
+    name: actor.name,
+  };
 }
 
 export async function getClientRecords(
   input: unknown,
 ): Promise<ClientRecordListResult> {
-  const tenantId = await getTenantId();
+  const actor = await getClientRecordActor();
   const query = clientRecordListQuerySchema.parse(input);
 
-  return findClientRecords(tenantId, query);
+  return findClientRecords(
+    actor.tenantId,
+    query,
+    getProfessionalScope(actor),
+  );
 }
 
 export async function getClientRecordFormOptions(input: unknown) {
-  const tenantId = await getTenantId();
+  const actor = await getClientRecordActor();
   const parsedInput = clientRecordFormOptionsSchema.parse(input);
 
-  return findClientRecordFormOptions(tenantId, parsedInput.clientId);
+  return findClientRecordFormOptions(
+    actor.tenantId,
+    parsedInput.clientId,
+    getProfessionalScope(actor),
+  );
 }
 
 export async function createClientRecordAction(input: unknown): Promise<void> {
-  const tenantId = await getTenantId();
+  const actor = await getClientRecordActor();
   const data = createClientRecordSchema.parse(input);
 
   try {
-    await createClientRecord(tenantId, data);
+    await createClientRecord(
+      actor.tenantId,
+      data,
+      getProfessionalScope(actor),
+      getProfessionalAuthor(actor),
+    );
 
     logger.info(
-      { operation: "client-record.create", tenantId },
+      { operation: "client-record.create", tenantId: actor.tenantId },
       "Client record created",
     );
   } catch (error: unknown) {
     logger.error(
-      { operation: "client-record.create", tenantId, error },
+      { operation: "client-record.create", tenantId: actor.tenantId, error },
       "Failed to create client record",
     );
 
@@ -71,16 +109,20 @@ export async function createClientRecordAction(input: unknown): Promise<void> {
 }
 
 export async function updateClientRecordAction(input: unknown): Promise<void> {
-  const tenantId = await getTenantId();
+  const actor = await getClientRecordActor();
   const data = updateClientRecordSchema.parse(input);
 
   try {
-    await updateClientRecord(tenantId, data);
+    await updateClientRecord(
+      actor.tenantId,
+      data,
+      getProfessionalScope(actor),
+    );
 
     logger.info(
       {
         operation: "client-record.update",
-        tenantId,
+        tenantId: actor.tenantId,
         clientRecordId: data.id,
       },
       "Client record updated",
@@ -89,7 +131,7 @@ export async function updateClientRecordAction(input: unknown): Promise<void> {
     logger.error(
       {
         operation: "client-record.update",
-        tenantId,
+        tenantId: actor.tenantId,
         clientRecordId: data.id,
         error,
       },
@@ -101,16 +143,20 @@ export async function updateClientRecordAction(input: unknown): Promise<void> {
 }
 
 export async function deleteClientRecordAction(input: unknown): Promise<void> {
-  const tenantId = await getTenantId();
+  const actor = await getClientRecordActor();
   const data = deleteClientRecordSchema.parse(input);
 
   try {
-    await deleteClientRecord(tenantId, data.id);
+    await deleteClientRecord(
+      actor.tenantId,
+      data.id,
+      getProfessionalScope(actor),
+    );
 
     logger.info(
       {
         operation: "client-record.delete",
-        tenantId,
+        tenantId: actor.tenantId,
         clientRecordId: data.id,
       },
       "Client record deleted",
@@ -119,7 +165,7 @@ export async function deleteClientRecordAction(input: unknown): Promise<void> {
     logger.error(
       {
         operation: "client-record.delete",
-        tenantId,
+        tenantId: actor.tenantId,
         clientRecordId: data.id,
         error,
       },
