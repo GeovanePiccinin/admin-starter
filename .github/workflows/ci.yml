@@ -46,8 +46,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Configure isolated test and build databases
+        run: |
+          PGPASSWORD=test createdb --host=127.0.0.1 --port=5432 --username=test agendamento_build
+          printf 'DATABASE_URL=postgresql://test:test@127.0.0.1:5432/agendamento_test?schema=public\nTEST_DATABASE_URL=postgresql://test:test@127.0.0.1:5432/agendamento_test?schema=public\n' > .env.test
+
       - name: Generate Prisma Client
-        run: pnpm prisma generate
+        run: pnpm db:generate
 
       - name: Lint
         run: pnpm lint
@@ -56,10 +61,13 @@ jobs:
         run: pnpm exec tsc --noEmit
 
       - name: Run migrations
-        run: pnpm prisma migrate deploy
+        run: pnpm db:migrate:test
 
       - name: Tests
         run: pnpm test:run
 
+      - name: Migrate isolated build database
+        run: DATABASE_URL=postgresql://test:test@127.0.0.1:5432/agendamento_build pnpm db:migrate:production
+
       - name: Build
-        run: pnpm build
+        run: DATABASE_URL=postgresql://test:test@127.0.0.1:5432/agendamento_build pnpm build

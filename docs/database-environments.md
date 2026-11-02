@@ -47,10 +47,24 @@ The deployment environment must provide `DATABASE_URL`; production commands
 never select a local database URL. Next.js may load local env files for other
 settings, but the deployment-provided `DATABASE_URL` is passed as a process
 variable and takes precedence. Use `pnpm build`, `pnpm start`, and
-`pnpm db:migrate:production` only in the deployment environment.
+`pnpm db:check:production`, `pnpm db:migrate:production`, and
+`pnpm db:seed:production` only in the deployment environment. Run
+`pnpm db:check:production` first and confirm its reported host, database, and
+schema before any write.
 
-Demo seeding is blocked in production. Never use reset commands against
-production.
+Demo seeding is disabled in production by default. It creates a demo tenant,
+accounts, and sample business records. To explicitly run it in a production
+environment, set `ALLOW_DEMO_SEED_IN_PRODUCTION=true` and provide distinct
+`DEMO_ADMIN_PASSWORD` and `DEMO_PROFESSIONAL_PASSWORD` values of at least 16
+characters, then run `pnpm db:seed:production`. The seed refuses to overwrite
+conflicting accounts and is limited to its fixed demo IDs, but it may update
+existing records with those IDs in the demo tenant. Never reuse these
+credentials for real accounts. Never use reset commands against production.
+
+The migration `20261104130000_backfill_client_professional_assignments` creates
+assignments for existing client-professional pairs evidenced by appointments.
+Clients without appointments remain unassigned and must be explicitly assigned
+by an administrator; the migration does not infer a relationship for them.
 
 ## Other commands
 

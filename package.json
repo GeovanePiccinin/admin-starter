@@ -12,11 +12,13 @@
     "db:generate": "tsx scripts/run-env.ts schema node_modules/prisma/build/index.js generate",
     "db:check:development": "tsx scripts/run-env.ts development node_modules/tsx/dist/cli.mjs scripts/check-db.ts",
     "db:check:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs scripts/check-db.ts",
+    "db:check:production": "tsx scripts/run-env.ts production node_modules/tsx/dist/cli.mjs scripts/check-db.ts",
     "db:migrate:development": "tsx scripts/run-env.ts development node_modules/tsx/dist/cli.mjs scripts/prisma-command.ts migrate deploy",
     "db:migrate:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs scripts/prisma-command.ts migrate deploy",
     "db:migrate:production": "tsx scripts/run-env.ts production node_modules/tsx/dist/cli.mjs scripts/prisma-command.ts migrate deploy",
     "db:seed:development": "tsx scripts/run-env.ts development node_modules/tsx/dist/cli.mjs prisma/seed.ts",
     "db:seed:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs prisma/seed.ts",
+    "db:seed:production": "tsx scripts/run-env.ts production node_modules/tsx/dist/cli.mjs prisma/seed.ts",
     "db:reset:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs scripts/reset-test-db.ts",
     "test": "tsx scripts/run-env.ts test node_modules/vitest/vitest.mjs",
     "test:run": "tsx scripts/run-env.ts test node_modules/vitest/vitest.mjs run"

@@ -314,7 +314,14 @@ async function ensureUser(
 
 export async function runDemoSeed(): Promise<void> {
   const environment = process.env.APP_ENV;
-  if (environment !== "development" && environment !== "test") {
+  const productionSeedEnabled =
+    environment === "production" &&
+    process.env.ALLOW_DEMO_SEED_IN_PRODUCTION === "true";
+  if (
+    environment !== "development" &&
+    environment !== "test" &&
+    !productionSeedEnabled
+  ) {
     throw new Error("Demo seed is disabled outside development and test.");
   }
 
@@ -325,12 +332,32 @@ export async function runDemoSeed(): Promise<void> {
   assertEnvironmentDatabase(connectionString, environment);
   const { target } = await verifyLiveDatabase();
 
-  const adminPassword =
-    process.env.DEMO_ADMIN_PASSWORD?.trim() || "admin123";
+  const configuredAdminPassword = process.env.DEMO_ADMIN_PASSWORD?.trim();
+  const configuredProfessionalPassword =
+    process.env.DEMO_PROFESSIONAL_PASSWORD?.trim();
+  if (
+    productionSeedEnabled &&
+    (!configuredAdminPassword || !configuredProfessionalPassword)
+  ) {
+    throw new Error(
+      "Production demo seeding requires explicit admin and professional passwords.",
+    );
+  }
+
+  const adminPassword = configuredAdminPassword || "admin123";
   const professionalPassword =
-    process.env.DEMO_PROFESSIONAL_PASSWORD?.trim() || "professional123";
-  if (adminPassword.length < 8 || professionalPassword.length < 8) {
-    throw new Error("Demo passwords must contain at least 8 characters.");
+    configuredProfessionalPassword || "professional123";
+  const minimumPasswordLength = productionSeedEnabled ? 16 : 8;
+  if (
+    adminPassword.length < minimumPasswordLength ||
+    professionalPassword.length < minimumPasswordLength ||
+    (productionSeedEnabled && adminPassword === professionalPassword)
+  ) {
+    throw new Error(
+      productionSeedEnabled
+        ? "Production demo passwords must each be at least 16 characters and must differ."
+        : "Demo passwords must contain at least 8 characters.",
+    );
   }
 
   const [adminPasswordHash, professionalPasswordHash] = await Promise.all([
