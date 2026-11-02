@@ -2,6 +2,8 @@
 
 import { logger } from "@/lib/logger/logger";
 import { requireAuthenticatedActor } from "@/lib/auth/get-authenticated-user";
+import { DomainError } from "@/lib/errors/domain-error";
+import { runServerAction } from "@/lib/observability/server-action";
 
 import {
   createAppointment,
@@ -28,7 +30,7 @@ async function getAppointmentActor() {
   const actor = await requireAuthenticatedActor();
 
   if (actor.role === "PROFESSIONAL" && !actor.professionalId) {
-    throw new Error("O perfil profissional não está configurado.");
+    throw new DomainError("O perfil profissional não está configurado.");
   }
 
   return actor;
@@ -45,67 +47,74 @@ function getProfessionalScope(
 export async function getAppointments(
   input: unknown,
 ): Promise<AppointmentListResult & { canChooseProfessional: boolean }> {
-  const actor = await getAppointmentActor();
-  const query = appointmentListQuerySchema.parse(input);
-  const result = await findAppointments(
-    actor.tenantId,
-    query,
-    getProfessionalScope(actor),
-  );
+  return runServerAction("appointment.list", async () => {
+    const actor = await getAppointmentActor();
+    const query = appointmentListQuerySchema.parse(input);
+    const result = await findAppointments(
+      actor.tenantId,
+      query,
+      getProfessionalScope(actor),
+    );
 
-  return {
-    ...result,
-    canChooseProfessional: actor.role === "ADMIN",
-  };
+    return {
+      ...result,
+      canChooseProfessional: actor.role === "ADMIN",
+    };
+  });
 }
 
 export async function getAppointmentCalendarEvents(
   input: unknown,
 ): Promise<AppointmentListItem[]> {
-  const actor = await getAppointmentActor();
-  const query = appointmentCalendarQuerySchema.parse(input);
+  return runServerAction("appointment.calendar", async () => {
+    const actor = await getAppointmentActor();
+    const query = appointmentCalendarQuerySchema.parse(input);
 
-  return findAppointmentsInRange(
-    actor.tenantId,
-    query,
-    getProfessionalScope(actor),
-  );
+    return findAppointmentsInRange(
+      actor.tenantId,
+      query,
+      getProfessionalScope(actor),
+    );
+  });
 }
 
 export async function getAppointmentFilterOptions() {
-  const actor = await getAppointmentActor();
+  return runServerAction("appointment.filter-options", async () => {
+    const actor = await getAppointmentActor();
 
-  return findAppointmentFilterOptions(
-    actor.tenantId,
-    getProfessionalScope(actor),
-  );
+    return findAppointmentFilterOptions(
+      actor.tenantId,
+      getProfessionalScope(actor),
+    );
+  });
 }
 
 export async function getAppointmentFormOptions() {
-  const actor = await getAppointmentActor();
+  return runServerAction("appointment.form-options", async () => {
+    const actor = await getAppointmentActor();
 
-  const options = await findAppointmentFormOptions(
-    actor.tenantId,
-    getProfessionalScope(actor),
-  );
+    const options = await findAppointmentFormOptions(
+      actor.tenantId,
+      getProfessionalScope(actor),
+    );
 
-  return {
-    ...options,
-    canChooseProfessional: actor.role === "ADMIN",
-  };
+    return {
+      ...options,
+      canChooseProfessional: actor.role === "ADMIN",
+    };
+  });
 }
 
 export async function createAppointmentAction(input: unknown): Promise<void> {
-  const actor = await getAppointmentActor();
-  const data = createAppointmentSchema.parse(input);
+  return runServerAction("appointment.create", async () => {
+    const actor = await getAppointmentActor();
+    const data = createAppointmentSchema.parse(input);
 
-  const professionalId = getProfessionalScope(actor) ?? data.professionalId;
+    const professionalId = getProfessionalScope(actor) ?? data.professionalId;
 
-  if (!professionalId) {
-    throw new Error("Selecione um profissional para o agendamento.");
-  }
-
-  try {
+    if (!professionalId) {
+      throw new DomainError("Selecione um profissional para o agendamento.");
+    }
     const appointmentId = await createAppointment(
       actor.tenantId,
       data,
@@ -120,31 +129,19 @@ export async function createAppointmentAction(input: unknown): Promise<void> {
       },
       "Appointment created",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "appointment.create",
-        tenantId: actor.tenantId,
-        error,
-      },
-      "Failed to create appointment",
-    );
-
-    throw error;
-  }
+  });
 }
 
 export async function updateAppointmentAction(input: unknown): Promise<void> {
-  const actor = await getAppointmentActor();
-  const data = updateAppointmentSchema.parse(input);
-  const professionalId =
-    actor.role === "PROFESSIONAL" ? actor.professionalId : data.professionalId;
+  return runServerAction("appointment.update", async () => {
+    const actor = await getAppointmentActor();
+    const data = updateAppointmentSchema.parse(input);
+    const professionalId =
+      actor.role === "PROFESSIONAL" ? actor.professionalId : data.professionalId;
 
-  if (!professionalId) {
-    throw new Error("Selecione um profissional para o agendamento.");
-  }
-
-  try {
+    if (!professionalId) {
+      throw new DomainError("Selecione um profissional para o agendamento.");
+    }
     await updateAppointment(
       actor.tenantId,
       {
@@ -162,26 +159,13 @@ export async function updateAppointmentAction(input: unknown): Promise<void> {
       },
       "Appointment updated",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "appointment.update",
-        tenantId: actor.tenantId,
-        appointmentId: data.id,
-        error,
-      },
-      "Failed to update appointment",
-    );
-
-    throw error;
-  }
+  });
 }
 
 export async function deleteAppointmentAction(input: unknown): Promise<void> {
-  const actor = await getAppointmentActor();
-  const data = deleteAppointmentSchema.parse(input);
-
-  try {
+  return runServerAction("appointment.delete", async () => {
+    const actor = await getAppointmentActor();
+    const data = deleteAppointmentSchema.parse(input);
     await deleteAppointment(
       actor.tenantId,
       data.id,
@@ -196,17 +180,5 @@ export async function deleteAppointmentAction(input: unknown): Promise<void> {
       },
       "Appointment deleted",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "appointment.delete",
-        tenantId: actor.tenantId,
-        appointmentId: data.id,
-        error,
-      },
-      "Failed to delete appointment",
-    );
-
-    throw error;
-  }
+  });
 }

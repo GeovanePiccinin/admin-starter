@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
+import { DomainError } from "@/lib/errors/domain-error";
 
 import type { CreateServiceData, UpdateServiceData } from "./service.schema";
 
@@ -114,7 +115,7 @@ export async function updateService(
   });
 
   if (result.count === 0) {
-    throw new Error("Serviço não encontrado.");
+    throw new DomainError("Serviço não encontrado.");
   }
 }
 
@@ -130,6 +131,6 @@ export async function deleteService(
   });
 
   if (result.count === 0) {
-    throw new Error("Serviço não encontrado.");
+    throw new DomainError("Serviço não encontrado.");
   }
 }

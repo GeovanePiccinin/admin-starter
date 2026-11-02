@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
+import { DomainError } from "@/lib/errors/domain-error";
 
 import type {
   AppointmentCalendarQuery,
@@ -369,13 +370,13 @@ async function validateAppointmentRelations(
   });
 
   if (!client || !professional || !service) {
-    throw new Error(
+    throw new DomainError(
       "Cliente, profissional ou serviço não encontrado neste tenant.",
     );
   }
 
   if (!assignment) {
-    throw new Error("O profissional não está associado a este serviço.");
+    throw new DomainError("O profissional não está associado a este serviço.");
   }
 }
 
@@ -402,14 +403,14 @@ async function validateNoScheduleConflict(
   });
 
   if (conflict) {
-    throw new Error("O profissional já possui um agendamento nesse horário.");
+    throw new DomainError("O profissional já possui um agendamento nesse horário.");
   }
 }
 
 function translateAppointmentMutationError(error: unknown): never {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2034") {
-      throw new Error(
+      throw new DomainError(
         "O horário foi alterado simultaneamente. Atualize a lista e tente novamente.",
       );
     }
@@ -423,7 +424,7 @@ function translateAppointmentMutationError(error: unknown): never {
         (typeof databaseError === "string" &&
           databaseError.includes("appointments_no_overlapping_active"))
       ) {
-        throw new Error(
+        throw new DomainError(
           "O profissional já possui um agendamento nesse horário.",
         );
       }
@@ -483,7 +484,7 @@ export async function updateAppointment(
     professionalScopeId ?? appointmentInput.professionalId;
 
   if (!professionalId) {
-    throw new Error("Selecione um profissional para o agendamento.");
+    throw new DomainError("Selecione um profissional para o agendamento.");
   }
 
   try {
@@ -501,7 +502,7 @@ export async function updateAppointment(
         });
 
         if (!existing) {
-          throw new Error("Agendamento não encontrado.");
+          throw new DomainError("Agendamento não encontrado.");
         }
 
         const data: AppointmentMutationData = {
@@ -533,7 +534,7 @@ export async function updateAppointment(
         });
 
         if (result.count === 0) {
-          throw new Error("Agendamento não encontrado.");
+          throw new DomainError("Agendamento não encontrado.");
         }
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -560,14 +561,14 @@ export async function deleteAppointment(
     });
 
     if (result.count === 0) {
-      throw new Error("Agendamento não encontrado.");
+      throw new DomainError("Agendamento não encontrado.");
     }
   } catch (error: unknown) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2003"
     ) {
-      throw new Error(
+      throw new DomainError(
         "Não é possível excluir este agendamento porque existe um atendimento ou pagamento vinculado.",
       );
     }

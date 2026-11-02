@@ -5,6 +5,7 @@ import {
   requireAuthenticatedActor,
   requireRole,
 } from "@/lib/auth/get-authenticated-user";
+import { runServerAction } from "@/lib/observability/server-action";
 
 import {
   createClient,
@@ -27,30 +28,33 @@ import {
 export async function getClients(
   input: unknown,
 ): Promise<ClientListResult & { canManage: boolean }> {
-  const actor = await requireAuthenticatedActor();
-  const query = clientListQuerySchema.parse(input);
-  const result = await findClients(actor.tenantId, query);
+  return runServerAction("client.list", async () => {
+    const actor = await requireAuthenticatedActor();
+    const query = clientListQuerySchema.parse(input);
+    const result = await findClients(actor.tenantId, query);
 
-  return {
-    ...result,
-    canManage: actor.role === "ADMIN",
-  };
+    return {
+      ...result,
+      canManage: actor.role === "ADMIN",
+    };
+  });
 }
 
 export async function getClientAssignmentOptions(input: unknown) {
-  const actor = await requireAuthenticatedActor();
-  requireRole(actor, "ADMIN");
-  const data = clientAssignmentOptionsSchema.parse(input);
+  return runServerAction("client.assignment-options", async () => {
+    const actor = await requireAuthenticatedActor();
+    requireRole(actor, "ADMIN");
+    const data = clientAssignmentOptionsSchema.parse(input);
 
-  return findClientAssignmentOptions(actor.tenantId, data.clientId);
+    return findClientAssignmentOptions(actor.tenantId, data.clientId);
+  });
 }
 
 export async function createClientAction(input: unknown): Promise<void> {
-  const actor = await requireAuthenticatedActor();
-  const data = createClientSchema.parse(input);
-  const { professionalIds, ...clientData } = data;
-
-  try {
+  return runServerAction("client.create", async () => {
+    const actor = await requireAuthenticatedActor();
+    const data = createClientSchema.parse(input);
+    const { professionalIds, ...clientData } = data;
     if (actor.role === "ADMIN" && professionalIds !== undefined) {
       await createClient(actor.tenantId, clientData, professionalIds);
     } else {
@@ -64,26 +68,14 @@ export async function createClientAction(input: unknown): Promise<void> {
       },
       "Client created",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "client.create",
-        tenantId: actor.tenantId,
-        error,
-      },
-      "Failed to create client",
-    );
-
-    throw error;
-  }
+  });
 }
 
 export async function updateClientAction(input: unknown): Promise<void> {
-  const actor = await requireAuthenticatedActor();
-  requireRole(actor, "ADMIN");
-  const data = updateClientSchema.parse(input);
-
-  try {
+  return runServerAction("client.update", async () => {
+    const actor = await requireAuthenticatedActor();
+    requireRole(actor, "ADMIN");
+    const data = updateClientSchema.parse(input);
     await updateClient(actor.tenantId, data);
 
     logger.info(
@@ -94,27 +86,14 @@ export async function updateClientAction(input: unknown): Promise<void> {
       },
       "Client updated",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "client.update",
-        tenantId: actor.tenantId,
-        clientId: data.id,
-        error,
-      },
-      "Failed to update client",
-    );
-
-    throw error;
-  }
+  });
 }
 
 export async function deleteClientAction(input: unknown): Promise<void> {
-  const actor = await requireAuthenticatedActor();
-  requireRole(actor, "ADMIN");
-  const data = deleteClientSchema.parse(input);
-
-  try {
+  return runServerAction("client.delete", async () => {
+    const actor = await requireAuthenticatedActor();
+    requireRole(actor, "ADMIN");
+    const data = deleteClientSchema.parse(input);
     await deleteClient(actor.tenantId, data.id);
 
     logger.info(
@@ -125,17 +104,5 @@ export async function deleteClientAction(input: unknown): Promise<void> {
       },
       "Client deleted",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "client.delete",
-        tenantId: actor.tenantId,
-        clientId: data.id,
-        error,
-      },
-      "Failed to delete client",
-    );
-
-    throw error;
-  }
+  });
 }

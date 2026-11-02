@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { PaymentStatus } from "@/generated/prisma/enums";
 
 import { prisma } from "@/lib/db/prisma";
+import { DomainError } from "@/lib/errors/domain-error";
 
 import type {
   PaymentAttendanceOption,
@@ -250,11 +251,11 @@ async function validateAttendance(
   });
 
   if (!attendance) {
-    throw new Error("Atendimento não encontrado.");
+    throw new DomainError("Atendimento não encontrado.");
   }
 
   if (attendance.payment && attendance.payment.id !== paymentId) {
-    throw new Error("Este atendimento já possui um pagamento.");
+    throw new DomainError("Este atendimento já possui um pagamento.");
   }
 }
 
@@ -293,7 +294,7 @@ export async function createPayment(
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      throw new Error("Este atendimento já possui um pagamento.");
+      throw new DomainError("Este atendimento já possui um pagamento.");
     }
 
     throw error;
@@ -318,7 +319,7 @@ export async function updatePayment(
     });
 
     if (!existing) {
-      throw new Error("Pagamento não encontrado.");
+      throw new DomainError("Pagamento não encontrado.");
     }
 
     await validateAttendance(
@@ -350,14 +351,14 @@ export async function updatePayment(
       });
 
       if (result.count === 0) {
-        throw new Error("Pagamento não encontrado.");
+        throw new DomainError("Pagamento não encontrado.");
       }
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
-        throw new Error("Este atendimento já possui um pagamento.");
+        throw new DomainError("Este atendimento já possui um pagamento.");
       }
 
       throw error;
@@ -381,6 +382,6 @@ export async function deletePayment(
   });
 
   if (result.count === 0) {
-    throw new Error("Pagamento não encontrado.");
+    throw new DomainError("Pagamento não encontrado.");
   }
 }

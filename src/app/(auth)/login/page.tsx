@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -38,7 +39,7 @@ export default function LoginPage() {
 
       router.replace("/dashboard");
     } catch (error: unknown) {
-      console.error(error);
+      Sentry.captureException(error);
       setError("Não foi possível realizar o login.");
     } finally {
       setIsLoading(false);

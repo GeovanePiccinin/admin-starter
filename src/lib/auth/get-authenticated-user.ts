@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
+import { addObservabilityContext } from "@/lib/observability/context";
 import type { Role } from "@/generated/prisma/enums";
 
 export type AuthenticatedActor = {
@@ -57,7 +58,7 @@ export async function findAuthenticatedActor(): Promise<AuthenticatedActor | nul
     return null;
   }
 
-  return {
+  const actor = {
     id: user.id,
     tenantId: user.tenantId,
     name: user.name,
@@ -65,6 +66,12 @@ export async function findAuthenticatedActor(): Promise<AuthenticatedActor | nul
     role: user.role,
     professionalId: user.professional?.id ?? null,
   };
+
+  addObservabilityContext({
+    tenantId: actor.tenantId,
+  });
+
+  return actor;
 }
 
 export async function requireAuthenticatedActor(): Promise<AuthenticatedActor> {

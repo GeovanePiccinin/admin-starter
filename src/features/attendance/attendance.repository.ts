@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { AttendanceStatus } from "@/generated/prisma/enums";
 
 import { prisma } from "@/lib/db/prisma";
+import { DomainError } from "@/lib/errors/domain-error";
 
 import type {
   AttendanceAppointmentOption,
@@ -455,7 +456,7 @@ async function validateAppointment(
   });
 
   if (!appointment) {
-    throw new Error(
+    throw new DomainError(
       "O agendamento não está disponível para este atendimento.",
     );
   }
@@ -473,7 +474,7 @@ async function validateAppointment(
     });
 
     if (!existing) {
-      throw new Error("Atendimento não encontrado.");
+      throw new DomainError("Atendimento não encontrado.");
     }
 
     const target = await transaction.appointment.findFirst({
@@ -490,7 +491,7 @@ async function validateAppointment(
         target.attendance?.id !== attendanceId) ||
       (target.attendance && target.attendance.id !== attendanceId)
     ) {
-      throw new Error(
+      throw new DomainError(
         "O agendamento não está disponível para este atendimento.",
       );
     }
@@ -524,7 +525,7 @@ async function assertNextStatus(
   });
 
   if (!current) {
-    throw new Error("Atendimento não encontrado.");
+    throw new DomainError("Atendimento não encontrado.");
   }
 
   const statusOrder: AttendanceStatus[] = [
@@ -536,7 +537,7 @@ async function assertNextStatus(
   const nextIndex = statusOrder.indexOf(nextStatus);
 
   if (nextIndex < currentIndex || nextIndex > currentIndex + 1) {
-    throw new Error(
+    throw new DomainError(
       "O status deve avançar sequencialmente de Agendado para Em andamento e depois Concluído.",
     );
   }
@@ -622,7 +623,7 @@ export async function updateAttendance(
     });
 
     if (result.count === 0) {
-      throw new Error("Atendimento não encontrado.");
+      throw new DomainError("Atendimento não encontrado.");
     }
   });
 }
@@ -648,7 +649,7 @@ export async function completeAttendance(
   });
 
   if (result.count === 0) {
-    throw new Error("Atendimento não encontrado ou não está em andamento.");
+    throw new DomainError("Atendimento não encontrado ou não está em andamento.");
   }
 }
 
@@ -669,14 +670,14 @@ export async function deleteAttendance(
     });
 
     if (result.count === 0) {
-      throw new Error("Atendimento não encontrado.");
+      throw new DomainError("Atendimento não encontrado.");
     }
   } catch (error: unknown) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2003"
     ) {
-      throw new Error(
+      throw new DomainError(
         "Não é possível excluir este atendimento porque há uma ficha ou pagamento vinculado.",
       );
     }

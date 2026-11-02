@@ -1,6 +1,7 @@
 "use server";
 
 import { logger } from "@/lib/logger/logger";
+import { runServerAction } from "@/lib/observability/server-action";
 import {
   requireAuthenticatedActor,
   requireRole,
@@ -25,19 +26,20 @@ import {
 } from "./service.query";
 
 export async function getServices(input: unknown): Promise<ServiceListResult> {
-  const actor = await requireAuthenticatedActor();
+  return runServerAction("service.list", async () => {
+    const actor = await requireAuthenticatedActor();
 
-  const query = serviceListQuerySchema.parse(input);
+    const query = serviceListQuerySchema.parse(input);
 
-  return findServices(actor.tenantId, query);
+    return findServices(actor.tenantId, query);
+  });
 }
 
 export async function createServiceAction(input: unknown): Promise<void> {
-  const actor = await requireAuthenticatedActor();
-  requireRole(actor, "ADMIN");
-  const data = createServiceSchema.parse(input);
-
-  try {
+  return runServerAction("service.create", async () => {
+    const actor = await requireAuthenticatedActor();
+    requireRole(actor, "ADMIN");
+    const data = createServiceSchema.parse(input);
     await createService(actor.tenantId, data);
 
     logger.info(
@@ -47,26 +49,14 @@ export async function createServiceAction(input: unknown): Promise<void> {
       },
       "Service created",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "service.create",
-        tenantId: actor.tenantId,
-        error,
-      },
-      "Failed to create service",
-    );
-
-    throw error;
-  }
+  });
 }
 
 export async function updateServiceAction(input: unknown): Promise<void> {
-  const actor = await requireAuthenticatedActor();
-  requireRole(actor, "ADMIN");
-  const data = updateServiceSchema.parse(input);
-
-  try {
+  return runServerAction("service.update", async () => {
+    const actor = await requireAuthenticatedActor();
+    requireRole(actor, "ADMIN");
+    const data = updateServiceSchema.parse(input);
     await updateService(actor.tenantId, data);
 
     logger.info(
@@ -77,27 +67,14 @@ export async function updateServiceAction(input: unknown): Promise<void> {
       },
       "Service updated",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "service.update",
-        tenantId: actor.tenantId,
-        serviceId: data.id,
-        error,
-      },
-      "Failed to update service",
-    );
-
-    throw error;
-  }
+  });
 }
 
 export async function deleteServiceAction(input: unknown): Promise<void> {
-  const actor = await requireAuthenticatedActor();
-  requireRole(actor, "ADMIN");
-  const data = deleteServiceSchema.parse(input);
-
-  try {
+  return runServerAction("service.delete", async () => {
+    const actor = await requireAuthenticatedActor();
+    requireRole(actor, "ADMIN");
+    const data = deleteServiceSchema.parse(input);
     await deleteService(actor.tenantId, data.id);
 
     logger.info(
@@ -108,17 +85,5 @@ export async function deleteServiceAction(input: unknown): Promise<void> {
       },
       "Service deleted",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "service.delete",
-        tenantId: actor.tenantId,
-        serviceId: data.id,
-        error,
-      },
-      "Failed to delete service",
-    );
-
-    throw error;
-  }
+  });
 }

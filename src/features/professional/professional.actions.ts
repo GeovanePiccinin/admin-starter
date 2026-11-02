@@ -3,6 +3,7 @@
 import argon2 from "argon2";
 
 import { logger } from "@/lib/logger/logger";
+import { runServerAction } from "@/lib/observability/server-action";
 import {
   requireAuthenticatedActor,
   requireRole,
@@ -34,27 +35,30 @@ async function requireProfessionalManager() {
 export async function getProfessionals(
   input: unknown,
 ): Promise<ProfessionalListResult & { canManage: boolean }> {
-  const actor = await requireAuthenticatedActor();
-  const query = professionalListQuerySchema.parse(input);
-  const result = await findProfessionals(actor.tenantId, query);
+  return runServerAction("professional.list", async () => {
+    const actor = await requireAuthenticatedActor();
+    const query = professionalListQuerySchema.parse(input);
+    const result = await findProfessionals(actor.tenantId, query);
 
-  return {
-    ...result,
-    canManage: actor.role === "ADMIN",
-  };
+    return {
+      ...result,
+      canManage: actor.role === "ADMIN",
+    };
+  });
 }
 
 export async function getProfessionalServices() {
-  const actor = await requireProfessionalManager();
+  return runServerAction("professional.service-options", async () => {
+    const actor = await requireProfessionalManager();
 
-  return findProfessionalServices(actor.tenantId);
+    return findProfessionalServices(actor.tenantId);
+  });
 }
 
 export async function createProfessionalAction(input: unknown): Promise<void> {
-  const actor = await requireProfessionalManager();
-  const data = createProfessionalSchema.parse(input);
-
-  try {
+  return runServerAction("professional.create", async () => {
+    const actor = await requireProfessionalManager();
+    const data = createProfessionalSchema.parse(input);
     const { password, ...professionalData } = data;
     const passwordHash = await argon2.hash(password);
     const professionalId = await createProfessional(actor.tenantId, {
@@ -70,25 +74,13 @@ export async function createProfessionalAction(input: unknown): Promise<void> {
       },
       "Professional created",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "professional.create",
-        tenantId: actor.tenantId,
-        error,
-      },
-      "Failed to create professional",
-    );
-
-    throw error;
-  }
+  });
 }
 
 export async function updateProfessionalAction(input: unknown): Promise<void> {
-  const actor = await requireProfessionalManager();
-  const data = updateProfessionalSchema.parse(input);
-
-  try {
+  return runServerAction("professional.update", async () => {
+    const actor = await requireProfessionalManager();
+    const data = updateProfessionalSchema.parse(input);
     const { id, password, ...professionalData } = data;
     const passwordHash = password ? await argon2.hash(password) : undefined;
 
@@ -106,26 +98,13 @@ export async function updateProfessionalAction(input: unknown): Promise<void> {
       },
       "Professional updated",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "professional.update",
-        tenantId: actor.tenantId,
-        professionalId: data.id,
-        error,
-      },
-      "Failed to update professional",
-    );
-
-    throw error;
-  }
+  });
 }
 
 export async function deleteProfessionalAction(input: unknown): Promise<void> {
-  const actor = await requireProfessionalManager();
-  const data = deleteProfessionalSchema.parse(input);
-
-  try {
+  return runServerAction("professional.delete", async () => {
+    const actor = await requireProfessionalManager();
+    const data = deleteProfessionalSchema.parse(input);
     await deleteProfessional(actor.tenantId, data.id);
 
     logger.info(
@@ -136,17 +115,5 @@ export async function deleteProfessionalAction(input: unknown): Promise<void> {
       },
       "Professional deleted",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "professional.delete",
-        tenantId: actor.tenantId,
-        professionalId: data.id,
-        error,
-      },
-      "Failed to delete professional",
-    );
-
-    throw error;
-  }
+  });
 }

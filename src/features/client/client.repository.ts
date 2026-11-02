@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
+import { DomainError } from "@/lib/errors/domain-error";
 
 import type {
   ClientAssignmentOptions,
@@ -116,7 +117,7 @@ export async function updateClient(
     });
 
     if (result.count === 0) {
-      throw new Error("Cliente não encontrado.");
+      throw new DomainError("Cliente não encontrado.");
     }
 
     if (input.professionalIds !== undefined) {
@@ -164,7 +165,7 @@ async function validateProfessionalIds(
   });
 
   if (professionals.length !== professionalIds.length) {
-    throw new Error("Um ou mais profissionais não foram encontrados.");
+    throw new DomainError("Um ou mais profissionais não foram encontrados.");
   }
 }
 
@@ -195,7 +196,7 @@ export async function findClientAssignmentOptions(
   ]);
 
   if (clientId && !client) {
-    throw new Error("Cliente não encontrado.");
+    throw new DomainError("Cliente não encontrado.");
   }
 
   return {
@@ -223,14 +224,14 @@ export async function deleteClient(
     });
 
     if (result.count === 0) {
-      throw new Error("Cliente não encontrado.");
+      throw new DomainError("Cliente não encontrado.");
     }
   } catch (error: unknown) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2003"
     ) {
-      throw new Error(
+      throw new DomainError(
         "Não é possível excluir este cliente porque existem registros vinculados.",
       );
     }

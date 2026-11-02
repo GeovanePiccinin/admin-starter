@@ -6,6 +6,9 @@ Development, tests, and production use explicit database configuration. See
 [Database environments](./docs/database-environments.md) for setup, scripts,
 and reset safeguards.
 
+See [Error handling and observability](./docs/observability.md) for logger,
+Server Action error handling, Sentry configuration, and privacy safeguards.
+
 ## Getting started
 
 Configure `.env.development` from `.env.development.example`, then run:

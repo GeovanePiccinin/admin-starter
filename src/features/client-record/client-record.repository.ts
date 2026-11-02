@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
+import { DomainError } from "@/lib/errors/domain-error";
 
 import type {
   ClientRecordAttendanceOption,
@@ -216,7 +217,7 @@ async function validateRelations(
   });
 
   if (!client) {
-    throw new Error("Cliente não encontrado.");
+    throw new DomainError("Cliente não encontrado.");
   }
 
   if (!attendanceId) {
@@ -239,7 +240,7 @@ async function validateRelations(
   });
 
   if (!attendance) {
-    throw new Error(
+    throw new DomainError(
       "O atendimento selecionado não pertence ao cliente informado.",
     );
   }
@@ -309,7 +310,7 @@ export async function updateClientRecord(
     });
 
     if (result.count === 0) {
-      throw new Error("Ficha do cliente não encontrada.");
+      throw new DomainError("Ficha do cliente não encontrada.");
     }
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
@@ -336,6 +337,6 @@ export async function deleteClientRecord(
   });
 
   if (result.count === 0) {
-    throw new Error("Ficha do cliente não encontrada.");
+    throw new DomainError("Ficha do cliente não encontrada.");
   }
 }

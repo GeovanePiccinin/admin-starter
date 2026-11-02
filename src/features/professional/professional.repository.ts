@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
+import { DomainError } from "@/lib/errors/domain-error";
 
 import type {
   ProfessionalListItem,
@@ -62,7 +63,7 @@ async function validateServiceOwnership(
   });
 
   if (serviceCount !== serviceIds.length) {
-    throw new Error("Um ou mais serviços não pertencem a este tenant.");
+    throw new DomainError("Um ou mais serviços não pertencem a este tenant.");
   }
 }
 
@@ -71,7 +72,7 @@ function translateDuplicateEmail(error: unknown): never {
     error instanceof Prisma.PrismaClientKnownRequestError &&
     error.code === "P2002"
   ) {
-    throw new Error("Já existe uma conta cadastrada com este e-mail.");
+    throw new DomainError("Já existe uma conta cadastrada com este e-mail.");
   }
 
   throw error;
@@ -219,7 +220,7 @@ export async function updateProfessional(
       });
 
       if (!professional) {
-        throw new Error("Profissional não encontrado.");
+        throw new DomainError("Profissional não encontrado.");
       }
 
       await transaction.user.updateMany({
@@ -274,7 +275,7 @@ export async function deleteProfessional(
       });
 
       if (!professional) {
-        throw new Error("Profissional não encontrado.");
+        throw new DomainError("Profissional não encontrado.");
       }
 
       const result = await transaction.user.deleteMany({
@@ -285,7 +286,7 @@ export async function deleteProfessional(
       });
 
       if (result.count === 0) {
-        throw new Error("Profissional não encontrado.");
+        throw new DomainError("Profissional não encontrado.");
       }
     });
   } catch (error: unknown) {
@@ -293,7 +294,7 @@ export async function deleteProfessional(
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2003"
     ) {
-      throw new Error(
+      throw new DomainError(
         "Não é possível excluir este profissional porque existem agendamentos ou registros de auditoria vinculados.",
       );
     }

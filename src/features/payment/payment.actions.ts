@@ -2,6 +2,8 @@
 
 import { logger } from "@/lib/logger/logger";
 import { requireAuthenticatedActor } from "@/lib/auth/get-authenticated-user";
+import { DomainError } from "@/lib/errors/domain-error";
+import { runServerAction } from "@/lib/observability/server-action";
 
 import {
   createPayment,
@@ -27,7 +29,7 @@ async function getPaymentActor() {
   const actor = await requireAuthenticatedActor();
 
   if (actor.role === "PROFESSIONAL" && !actor.professionalId) {
-    throw new Error("O perfil profissional não está configurado.");
+    throw new DomainError("O perfil profissional não está configurado.");
   }
 
   return actor;
@@ -40,43 +42,48 @@ function getProfessionalScope(actor: Awaited<ReturnType<typeof getPaymentActor>>
 }
 
 export async function getPayments(input: unknown): Promise<PaymentListResult> {
-  const actor = await getPaymentActor();
-  const query = paymentListQuerySchema.parse(input);
+  return runServerAction("payment.list", async () => {
+    const actor = await getPaymentActor();
+    const query = paymentListQuerySchema.parse(input);
 
-  return findPayments(
-    actor.tenantId,
-    query,
-    getProfessionalScope(actor),
-  );
+    return findPayments(
+      actor.tenantId,
+      query,
+      getProfessionalScope(actor),
+    );
+  });
 }
 
 export async function getPaymentForAttendance(input: unknown) {
-  const actor = await getPaymentActor();
-  const data = paymentAttendanceQuerySchema.parse(input);
+  return runServerAction("payment.for-attendance", async () => {
+    const actor = await getPaymentActor();
+    const data = paymentAttendanceQuerySchema.parse(input);
 
-  return findPaymentForAttendance(
-    actor.tenantId,
-    data.attendanceId,
-    getProfessionalScope(actor),
-  );
+    return findPaymentForAttendance(
+      actor.tenantId,
+      data.attendanceId,
+      getProfessionalScope(actor),
+    );
+  });
 }
 
 export async function getPaymentFormOptions(input: unknown) {
-  const actor = await getPaymentActor();
-  const parsedInput = paymentFormOptionsSchema.parse(input);
+  return runServerAction("payment.form-options", async () => {
+    const actor = await getPaymentActor();
+    const parsedInput = paymentFormOptionsSchema.parse(input);
 
-  return findPaymentFormOptions(
-    actor.tenantId,
-    getProfessionalScope(actor),
-    parsedInput.paymentId,
-  );
+    return findPaymentFormOptions(
+      actor.tenantId,
+      getProfessionalScope(actor),
+      parsedInput.paymentId,
+    );
+  });
 }
 
 export async function createPaymentAction(input: unknown): Promise<void> {
-  const actor = await getPaymentActor();
-  const data = createPaymentSchema.parse(input);
-
-  try {
+  return runServerAction("payment.create", async () => {
+    const actor = await getPaymentActor();
+    const data = createPaymentSchema.parse(input);
     await createPayment(
       actor.tenantId,
       data,
@@ -87,21 +94,13 @@ export async function createPaymentAction(input: unknown): Promise<void> {
       { operation: "payment.create", tenantId: actor.tenantId },
       "Payment created",
     );
-  } catch (error: unknown) {
-    logger.error(
-      { operation: "payment.create", tenantId: actor.tenantId, error },
-      "Failed to create payment",
-    );
-
-    throw error;
-  }
+  });
 }
 
 export async function updatePaymentAction(input: unknown): Promise<void> {
-  const actor = await getPaymentActor();
-  const data = updatePaymentSchema.parse(input);
-
-  try {
+  return runServerAction("payment.update", async () => {
+    const actor = await getPaymentActor();
+    const data = updatePaymentSchema.parse(input);
     await updatePayment(
       actor.tenantId,
       data,
@@ -116,26 +115,13 @@ export async function updatePaymentAction(input: unknown): Promise<void> {
       },
       "Payment updated",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "payment.update",
-        tenantId: actor.tenantId,
-        paymentId: data.id,
-        error,
-      },
-      "Failed to update payment",
-    );
-
-    throw error;
-  }
+  });
 }
 
 export async function deletePaymentAction(input: unknown): Promise<void> {
-  const actor = await getPaymentActor();
-  const data = deletePaymentSchema.parse(input);
-
-  try {
+  return runServerAction("payment.delete", async () => {
+    const actor = await getPaymentActor();
+    const data = deletePaymentSchema.parse(input);
     await deletePayment(
       actor.tenantId,
       data.id,
@@ -150,17 +136,5 @@ export async function deletePaymentAction(input: unknown): Promise<void> {
       },
       "Payment deleted",
     );
-  } catch (error: unknown) {
-    logger.error(
-      {
-        operation: "payment.delete",
-        tenantId: actor.tenantId,
-        paymentId: data.id,
-        error,
-      },
-      "Failed to delete payment",
-    );
-
-    throw error;
-  }
+  });
 }
