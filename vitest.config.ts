@@ -1,203 +1,68 @@
-import { defineConfig } from "vitest/config";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { parse as parseEnv } from "dotenv";
-import { loadEnv } from "vite";
 
-const envDir = process.cwd();
-const testEnv = loadEnv("test", envDir, "");
-const explicitTestEnv = [".env.test", ".env.test.local"].reduce<
-  Record<string, string>
->((environment, fileName) => {
-  const filePath = path.join(envDir, fileName);
+import { parse } from "dotenv";
+import { defineConfig } from "vitest/config";
 
-  if (existsSync(filePath)) {
-    Object.assign(environment, parseEnv(readFileSync(filePath)));
+import {
+  assertEnvironmentDatabase,
+  clearPostgresEnvironmentOverrides,
+  getDatabaseTarget,
+  sameDatabaseTarget,
+} from "./src/lib/db/database-target";
+
+const envPath = path.resolve(process.cwd(), ".env.test");
+if (!existsSync(envPath)) {
+  throw new Error(".env.test is required to run tests.");
+}
+
+const testEnv = parse(readFileSync(envPath));
+const databaseUrl = testEnv.DATABASE_URL?.trim();
+const testDatabaseUrl = testEnv.TEST_DATABASE_URL?.trim();
+
+if (!databaseUrl || !testDatabaseUrl) {
+  throw new Error(".env.test must define DATABASE_URL and TEST_DATABASE_URL.");
+}
+
+const databaseTarget = assertEnvironmentDatabase(databaseUrl, "test");
+const testDatabaseTarget = assertEnvironmentDatabase(testDatabaseUrl, "test");
+if (!sameDatabaseTarget(databaseTarget, testDatabaseTarget)) {
+  throw new Error("DATABASE_URL and TEST_DATABASE_URL in .env.test must match.");
+}
+
+for (const fileName of [".env", ".env.development"]) {
+  const filePath = path.resolve(process.cwd(), fileName);
+  if (!existsSync(filePath)) {
+    continue;
   }
 
-  return environment;
-}, {});
-const testDatabaseUrl =
-  process.env.TEST_DATABASE_URL?.trim() || testEnv.TEST_DATABASE_URL?.trim();
-
-type DatabaseTarget = {
-  host: string;
-  port: string;
-  database: string;
-};
-
-const targetOverrideParameters = [
-  "database",
-  "host",
-  "hostaddr",
-  "port",
-  "options",
-  "search_path",
-  "service",
-  "servicefile",
-];
-
-function getDatabaseTarget(
-  connectionString: string,
-  variableName: string,
-): DatabaseTarget {
-  let url: URL;
-
-  try {
-    url = new URL(connectionString);
-  } catch {
-    throw new Error(
-      `${variableName} must be a valid PostgreSQL connection URL.`,
-    );
-  }
-
-  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
-    throw new Error(
-      `${variableName} must use the postgres: or postgresql: protocol.`,
-    );
-  }
-
+  const configuredUrl = parse(readFileSync(filePath)).DATABASE_URL?.trim();
   if (
-    targetOverrideParameters.some((parameter) =>
-      url.searchParams.has(parameter),
-    )
+    configuredUrl &&
+    sameDatabaseTarget(databaseTarget, getDatabaseTarget(configuredUrl))
   ) {
     throw new Error(
-      `${variableName} must not override its host, port, or database in the query string.`,
-    );
-  }
-
-  if (!url.hostname || !url.port || !url.pathname.startsWith("/")) {
-    throw new Error(
-      `${variableName} must explicitly specify its host, port, and database.`,
-    );
-  }
-
-  const encodedDatabase = url.pathname.slice(1);
-
-  if (!encodedDatabase || encodedDatabase.includes("%") || encodedDatabase.includes("/")) {
-    throw new Error(
-      `${variableName} must use a database name without percent-encoding or path separators.`,
-    );
-  }
-
-  return {
-    host: url.hostname,
-    port: url.port,
-    database: encodedDatabase,
-  };
-}
-
-function getLocalTestDatabaseTarget(
-  connectionString: string,
-  variableName: string,
-): DatabaseTarget {
-  const target = getDatabaseTarget(connectionString, variableName);
-
-  if (!["127.0.0.1", "[::1]"].includes(target.host)) {
-    throw new Error(
-      `${variableName} must use a numeric loopback address (127.0.0.1 or ::1).`,
-    );
-  }
-
-  const database = target.database;
-
-  if (!database || !database.endsWith("_test")) {
-    throw new Error(
-      `${variableName} must target a dedicated database whose name ends with "_test".`,
-    );
-  }
-
-  return target;
-}
-
-function validateTestSchema(
-  connectionString: string,
-  variableName: string,
-): void {
-  const url = new URL(connectionString);
-  const schemas = url.searchParams.getAll("schema");
-
-  if (schemas.length > 1 || (schemas.length === 1 && schemas[0] !== "public")) {
-    throw new Error(
-      `${variableName} must use the "public" schema or omit the schema parameter.`,
+      `.env.test points to the same database as ${fileName}. Configure a dedicated test database.`,
     );
   }
 }
 
-function sameDatabaseTarget(
-  first: DatabaseTarget,
-  second: DatabaseTarget,
-): boolean {
-  const loopbackHosts = ["localhost", "127.0.0.1", "[::1]"];
-  const sameHost =
-    first.host === second.host ||
-    (loopbackHosts.includes(first.host) && loopbackHosts.includes(second.host));
-
-  return (
-    sameHost &&
-    first.port === second.port &&
-    first.database === second.database
-  );
+const configuredSchema = testEnv.DATABASE_SCHEMA?.trim();
+if (configuredSchema && configuredSchema !== databaseTarget.schema) {
+  throw new Error("DATABASE_SCHEMA in .env.test conflicts with DATABASE_URL.");
 }
 
-if (!testDatabaseUrl) {
-  throw new Error(
-    "TEST_DATABASE_URL is required to run tests. Configure a dedicated local PostgreSQL database; see .env.test.example.",
-  );
-}
-
-const testDatabaseTarget = getLocalTestDatabaseTarget(
-  testDatabaseUrl,
-  "TEST_DATABASE_URL",
+clearPostgresEnvironmentOverrides();
+const isolatedTestEnv = Object.fromEntries(
+  Object.entries(testEnv).filter(
+    ([key]) => !key.toUpperCase().startsWith("PG"),
+  ),
 );
-validateTestSchema(testDatabaseUrl, "TEST_DATABASE_URL");
 
-const normalDatabaseUrls = [
-  process.env.DATABASE_URL,
-  loadEnv("development", envDir, "").DATABASE_URL,
-  loadEnv("production", envDir, "").DATABASE_URL,
-].filter((value): value is string => Boolean(value?.trim()));
-
-for (const normalDatabaseUrl of normalDatabaseUrls) {
-  const normalTarget = getDatabaseTarget(
-    normalDatabaseUrl,
-    "DATABASE_URL from the application environment",
-  );
-
-  if (sameDatabaseTarget(testDatabaseTarget, normalTarget)) {
-    throw new Error(
-      "TEST_DATABASE_URL points to the same database as DATABASE_URL. Configure a separate test database.",
-    );
-  }
-}
-
-const configuredTestDatabaseUrl = explicitTestEnv.DATABASE_URL?.trim();
-
-if (configuredTestDatabaseUrl) {
-  const configuredTestTarget = getDatabaseTarget(
-    configuredTestDatabaseUrl,
-    "DATABASE_URL from the test environment",
-  );
-
-  if (!sameDatabaseTarget(testDatabaseTarget, configuredTestTarget)) {
-    throw new Error(
-      "DATABASE_URL from the test environment conflicts with TEST_DATABASE_URL. Remove it or point both variables to the same dedicated test database.",
-    );
-  }
-}
-
-const testSchema = "public";
-const configuredTestSchema = explicitTestEnv.DATABASE_SCHEMA?.trim();
-
-if (configuredTestSchema && configuredTestSchema !== testSchema) {
-  throw new Error(
-    `DATABASE_SCHEMA in the test environment must be "${testSchema}".`,
-  );
-}
-
-process.env.DATABASE_URL = testDatabaseUrl;
-process.env.DATABASE_SCHEMA = testSchema;
+process.env.APP_ENV = "test";
+process.env.TEST_DATABASE_URL = testDatabaseUrl;
+process.env.DATABASE_URL = databaseUrl;
+process.env.DATABASE_SCHEMA = databaseTarget.schema;
 
 export default defineConfig({
   resolve: {
@@ -205,15 +70,15 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-
   test: {
     globals: true,
     setupFiles: ["./src/tests/setup.ts"],
     env: {
-      ...testEnv,
+      ...isolatedTestEnv,
+      APP_ENV: "test",
       TEST_DATABASE_URL: testDatabaseUrl,
-      DATABASE_URL: testDatabaseUrl,
-      DATABASE_SCHEMA: testSchema,
+      DATABASE_URL: databaseUrl,
+      DATABASE_SCHEMA: databaseTarget.schema,
     },
   },
 });
