@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/get-authenticated-user";
 import { DomainError } from "@/lib/errors/domain-error";
 import { logger } from "@/lib/logger/logger";
+import { RateLimitExceededError } from "@/lib/rate-limit/rate-limit";
 
 import {
   createOperationId,
@@ -15,7 +16,13 @@ import {
 
 interface SafeActionFailure {
   level: "warn" | "error";
-  category: "validation" | "authentication" | "authorization" | "domain" | "internal";
+  category:
+    | "validation"
+    | "authentication"
+    | "authorization"
+    | "domain"
+    | "rate_limit"
+    | "internal";
   message: string;
 }
 
@@ -48,6 +55,14 @@ function classifyActionFailure(error: unknown): SafeActionFailure {
     return {
       level: "warn",
       category: "domain",
+      message: error.message,
+    };
+  }
+
+  if (error instanceof RateLimitExceededError) {
+    return {
+      level: "warn",
+      category: "rate_limit",
       message: error.message,
     };
   }

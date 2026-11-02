@@ -9,6 +9,9 @@ and reset safeguards.
 See [Error handling and observability](./docs/observability.md) for logger,
 Server Action error handling, Sentry configuration, and privacy safeguards.
 
+See [Audit log and rate limiting](./docs/audit-and-rate-limiting.md) for
+audited operations, rate limits, and migration requirements.
+
 ## Getting started
 
 Configure `.env.development` from `.env.development.example`, then run:

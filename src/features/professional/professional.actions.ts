@@ -3,6 +3,7 @@
 import argon2 from "argon2";
 
 import { logger } from "@/lib/logger/logger";
+import { writeAuditLog } from "@/lib/audit/audit-log";
 import { runServerAction } from "@/lib/observability/server-action";
 import {
   requireAuthenticatedActor,
@@ -66,6 +67,14 @@ export async function createProfessionalAction(input: unknown): Promise<void> {
       passwordHash,
     });
 
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "create",
+      entity: "Professional",
+      entityId: professionalId,
+    });
+
     logger.info(
       {
         operation: "professional.create",
@@ -90,6 +99,14 @@ export async function updateProfessionalAction(input: unknown): Promise<void> {
       ...(passwordHash ? { passwordHash } : {}),
     });
 
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "update",
+      entity: "Professional",
+      entityId: id,
+    });
+
     logger.info(
       {
         operation: "professional.update",
@@ -106,6 +123,13 @@ export async function deleteProfessionalAction(input: unknown): Promise<void> {
     const actor = await requireProfessionalManager();
     const data = deleteProfessionalSchema.parse(input);
     await deleteProfessional(actor.tenantId, data.id);
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "delete",
+      entity: "Professional",
+      entityId: data.id,
+    });
 
     logger.info(
       {

@@ -82,8 +82,8 @@ export async function findServices(
 export async function createService(
   tenantId: string,
   input: CreateServiceData,
-): Promise<void> {
-  await prisma.service.create({
+): Promise<string> {
+  const service = await prisma.service.create({
     data: {
       tenantId,
       name: input.name,
@@ -92,7 +92,10 @@ export async function createService(
       price: input.price,
       active: input.active,
     },
+    select: { id: true },
   });
+
+  return service.id;
 }
 
 export async function updateService(

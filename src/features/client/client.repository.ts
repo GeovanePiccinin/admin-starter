@@ -73,8 +73,8 @@ export async function createClient(
   tenantId: string,
   input: CreateClientData,
   professionalIds?: string[],
-): Promise<void> {
-  await prisma.$transaction(async (transaction) => {
+): Promise<string> {
+  return prisma.$transaction(async (transaction) => {
     await validateProfessionalIds(transaction, tenantId, professionalIds);
 
     const client = await transaction.client.create({
@@ -96,6 +96,8 @@ export async function createClient(
         })),
       });
     }
+
+    return client.id;
   });
 }
 

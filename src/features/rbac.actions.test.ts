@@ -52,6 +52,13 @@ vi.mock("@/auth", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   prisma: {
+    auditLog: {
+      create: vi.fn(),
+    },
+    rateLimitBucket: {
+      upsert: vi.fn(async () => ({ count: 1 })),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+    },
     user: {
       findFirst: mocks.findActor,
     },

@@ -251,8 +251,8 @@ export async function createClientRecord(
   input: CreateClientRecordData,
   professionalScopeId?: string,
   author?: { professionalId: string; name: string },
-): Promise<void> {
-  await prisma.$transaction(async (transaction) => {
+): Promise<string> {
+  return prisma.$transaction(async (transaction) => {
     await validateRelations(
       transaction,
       tenantId,
@@ -261,7 +261,7 @@ export async function createClientRecord(
       professionalScopeId,
     );
 
-    await transaction.clientRecord.create({
+    const record = await transaction.clientRecord.create({
       data: {
         tenantId,
         clientId: input.clientId,
@@ -270,7 +270,10 @@ export async function createClientRecord(
         authorProfessionalId: author?.professionalId ?? null,
         authorName: author?.name ?? null,
       },
+      select: { id: true },
     });
+
+    return record.id;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 

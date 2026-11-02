@@ -1,6 +1,7 @@
 "use server";
 
 import { logger } from "@/lib/logger/logger";
+import { writeAuditLog } from "@/lib/audit/audit-log";
 import { requireAuthenticatedActor } from "@/lib/auth/get-authenticated-user";
 import { DomainError } from "@/lib/errors/domain-error";
 import { runServerAction } from "@/lib/observability/server-action";
@@ -84,11 +85,18 @@ export async function createPaymentAction(input: unknown): Promise<void> {
   return runServerAction("payment.create", async () => {
     const actor = await getPaymentActor();
     const data = createPaymentSchema.parse(input);
-    await createPayment(
+    const paymentId = await createPayment(
       actor.tenantId,
       data,
       getProfessionalScope(actor),
     );
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "create",
+      entity: "Payment",
+      entityId: paymentId,
+    });
 
     logger.info(
       { operation: "payment.create", tenantId: actor.tenantId },
@@ -106,6 +114,13 @@ export async function updatePaymentAction(input: unknown): Promise<void> {
       data,
       getProfessionalScope(actor),
     );
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "update",
+      entity: "Payment",
+      entityId: data.id,
+    });
 
     logger.info(
       {
@@ -127,6 +142,13 @@ export async function deletePaymentAction(input: unknown): Promise<void> {
       data.id,
       getProfessionalScope(actor),
     );
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "delete",
+      entity: "Payment",
+      entityId: data.id,
+    });
 
     logger.info(
       {

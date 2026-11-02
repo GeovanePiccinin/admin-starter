@@ -3,6 +3,11 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
 import { prisma } from "@/lib/db/prisma";
+import { writeAuditLog } from "@/lib/audit/audit-log";
+import {
+  enforceLoginRateLimit,
+  RateLimitExceededError,
+} from "@/lib/rate-limit/rate-limit";
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
   pages: {
@@ -15,12 +20,27 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         password: {},
       },
 
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const email = credentials?.email;
         const password = credentials?.password;
 
         if (typeof email !== "string" || typeof password !== "string") {
           return null;
+        }
+
+        const forwardedAddress =
+          request.headers.get("x-vercel-forwarded-for") ??
+          request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ??
+          request.headers.get("x-real-ip") ??
+          undefined;
+
+        try {
+          await enforceLoginRateLimit(email, forwardedAddress);
+        } catch (error: unknown) {
+          if (error instanceof RateLimitExceededError) {
+            return null;
+          }
+          throw error;
         }
 
         const user = await prisma.user.findUnique({
@@ -41,6 +61,14 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         if (!passwordIsValid) {
           return null;
         }
+
+        await writeAuditLog({
+          tenantId: user.tenantId,
+          actorId: user.id,
+          action: "login",
+          entity: "User",
+          entityId: user.id,
+        });
 
         return {
           id: user.id,

@@ -1,6 +1,7 @@
 "use server";
 
 import { logger } from "@/lib/logger/logger";
+import { writeAuditLog } from "@/lib/audit/audit-log";
 import { requireAuthenticatedActor } from "@/lib/auth/get-authenticated-user";
 import { DomainError } from "@/lib/errors/domain-error";
 import { runServerAction } from "@/lib/observability/server-action";
@@ -120,6 +121,13 @@ export async function createAppointmentAction(input: unknown): Promise<void> {
       data,
       professionalId,
     );
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "create",
+      entity: "Appointment",
+      entityId: appointmentId,
+    });
 
     logger.info(
       {
@@ -150,6 +158,13 @@ export async function updateAppointmentAction(input: unknown): Promise<void> {
       },
       getProfessionalScope(actor),
     );
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "update",
+      entity: "Appointment",
+      entityId: data.id,
+    });
 
     logger.info(
       {
@@ -171,6 +186,13 @@ export async function deleteAppointmentAction(input: unknown): Promise<void> {
       data.id,
       getProfessionalScope(actor),
     );
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "delete",
+      entity: "Appointment",
+      entityId: data.id,
+    });
 
     logger.info(
       {

@@ -1,6 +1,7 @@
 "use server";
 
 import { logger } from "@/lib/logger/logger";
+import { writeAuditLog } from "@/lib/audit/audit-log";
 import { requireAuthenticatedActor } from "@/lib/auth/get-authenticated-user";
 import { DomainError } from "@/lib/errors/domain-error";
 import { runServerAction } from "@/lib/observability/server-action";
@@ -97,6 +98,13 @@ export async function createAttendanceAction(input: unknown): Promise<string> {
       data,
       getProfessionalScope(actor),
     );
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "create",
+      entity: "Attendance",
+      entityId: attendanceId,
+    });
 
     logger.info(
       {
@@ -120,6 +128,13 @@ export async function updateAttendanceAction(input: unknown): Promise<void> {
       data,
       getProfessionalScope(actor),
     );
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "update",
+      entity: "Attendance",
+      entityId: data.id,
+    });
 
     logger.info(
       {
@@ -141,6 +156,13 @@ export async function completeAttendanceAction(input: unknown): Promise<void> {
       data.id,
       getProfessionalScope(actor),
     );
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "complete",
+      entity: "Attendance",
+      entityId: data.id,
+    });
 
     logger.info(
       {
@@ -162,6 +184,13 @@ export async function deleteAttendanceAction(input: unknown): Promise<void> {
       data.id,
       getProfessionalScope(actor),
     );
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "delete",
+      entity: "Attendance",
+      entityId: data.id,
+    });
 
     logger.info(
       {

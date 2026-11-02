@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
-import { addObservabilityContext } from "@/lib/observability/context";
+import {
+  addObservabilityContext,
+  getObservabilityContext,
+} from "@/lib/observability/context";
+import { enforceAuthenticatedActionRateLimit } from "@/lib/rate-limit/rate-limit";
 import type { Role } from "@/generated/prisma/enums";
 
 export type AuthenticatedActor = {
@@ -66,6 +70,15 @@ export async function findAuthenticatedActor(): Promise<AuthenticatedActor | nul
     role: user.role,
     professionalId: user.professional?.id ?? null,
   };
+
+  const operation = getObservabilityContext()?.operation;
+  if (operation) {
+    await enforceAuthenticatedActionRateLimit(
+      actor.tenantId,
+      actor.id,
+      operation,
+    );
+  }
 
   addObservabilityContext({
     tenantId: actor.tenantId,

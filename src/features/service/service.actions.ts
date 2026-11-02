@@ -1,6 +1,7 @@
 "use server";
 
 import { logger } from "@/lib/logger/logger";
+import { writeAuditLog } from "@/lib/audit/audit-log";
 import { runServerAction } from "@/lib/observability/server-action";
 import {
   requireAuthenticatedActor,
@@ -40,7 +41,14 @@ export async function createServiceAction(input: unknown): Promise<void> {
     const actor = await requireAuthenticatedActor();
     requireRole(actor, "ADMIN");
     const data = createServiceSchema.parse(input);
-    await createService(actor.tenantId, data);
+    const serviceId = await createService(actor.tenantId, data);
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "create",
+      entity: "Service",
+      entityId: serviceId,
+    });
 
     logger.info(
       {
@@ -58,6 +66,13 @@ export async function updateServiceAction(input: unknown): Promise<void> {
     requireRole(actor, "ADMIN");
     const data = updateServiceSchema.parse(input);
     await updateService(actor.tenantId, data);
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "update",
+      entity: "Service",
+      entityId: data.id,
+    });
 
     logger.info(
       {
@@ -76,6 +91,13 @@ export async function deleteServiceAction(input: unknown): Promise<void> {
     requireRole(actor, "ADMIN");
     const data = deleteServiceSchema.parse(input);
     await deleteService(actor.tenantId, data.id);
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "delete",
+      entity: "Service",
+      entityId: data.id,
+    });
 
     logger.info(
       {

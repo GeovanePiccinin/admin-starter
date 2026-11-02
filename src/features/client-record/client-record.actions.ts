@@ -1,6 +1,7 @@
 "use server";
 
 import { logger } from "@/lib/logger/logger";
+import { writeAuditLog } from "@/lib/audit/audit-log";
 import {
   requireAuthenticatedActor,
 } from "@/lib/auth/get-authenticated-user";
@@ -92,12 +93,19 @@ export async function createClientRecordAction(input: unknown): Promise<void> {
   return runServerAction("client-record.create", async () => {
     const actor = await getClientRecordActor();
     const data = createClientRecordSchema.parse(input);
-    await createClientRecord(
+    const clientRecordId = await createClientRecord(
       actor.tenantId,
       data,
       getProfessionalScope(actor),
       getProfessionalAuthor(actor),
     );
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "create",
+      entity: "ClientRecord",
+      entityId: clientRecordId,
+    });
 
     logger.info(
       { operation: "client-record.create", tenantId: actor.tenantId },
@@ -115,6 +123,13 @@ export async function updateClientRecordAction(input: unknown): Promise<void> {
       data,
       getProfessionalScope(actor),
     );
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "update",
+      entity: "ClientRecord",
+      entityId: data.id,
+    });
 
     logger.info(
       {
@@ -136,6 +151,13 @@ export async function deleteClientRecordAction(input: unknown): Promise<void> {
       data.id,
       getProfessionalScope(actor),
     );
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "delete",
+      entity: "ClientRecord",
+      entityId: data.id,
+    });
 
     logger.info(
       {

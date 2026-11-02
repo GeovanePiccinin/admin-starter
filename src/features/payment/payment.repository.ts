@@ -270,9 +270,9 @@ export async function createPayment(
   tenantId: string,
   input: CreatePaymentData,
   professionalScopeId?: string,
-): Promise<void> {
+): Promise<string> {
   try {
-    await prisma.$transaction(async (transaction) => {
+    return await prisma.$transaction(async (transaction) => {
       await validateAttendance(
         transaction,
         tenantId,
@@ -280,14 +280,17 @@ export async function createPayment(
         professionalScopeId,
       );
 
-      await transaction.payment.create({
+      const payment = await transaction.payment.create({
         data: {
           tenantId,
           attendanceId: input.attendanceId,
           status: input.status,
           paidAt: getPaidAt(input.status, input.paidAt),
         },
+        select: { id: true },
       });
+
+      return payment.id;
     });
   } catch (error: unknown) {
     if (

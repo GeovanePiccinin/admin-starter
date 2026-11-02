@@ -1,6 +1,7 @@
 "use server";
 
 import { logger } from "@/lib/logger/logger";
+import { writeAuditLog } from "@/lib/audit/audit-log";
 import {
   requireAuthenticatedActor,
   requireRole,
@@ -55,11 +56,18 @@ export async function createClientAction(input: unknown): Promise<void> {
     const actor = await requireAuthenticatedActor();
     const data = createClientSchema.parse(input);
     const { professionalIds, ...clientData } = data;
-    if (actor.role === "ADMIN" && professionalIds !== undefined) {
-      await createClient(actor.tenantId, clientData, professionalIds);
-    } else {
-      await createClient(actor.tenantId, clientData);
-    }
+    const clientId =
+      actor.role === "ADMIN" && professionalIds !== undefined
+        ? await createClient(actor.tenantId, clientData, professionalIds)
+        : await createClient(actor.tenantId, clientData);
+
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "create",
+      entity: "Client",
+      entityId: clientId,
+    });
 
     logger.info(
       {
@@ -77,6 +85,13 @@ export async function updateClientAction(input: unknown): Promise<void> {
     requireRole(actor, "ADMIN");
     const data = updateClientSchema.parse(input);
     await updateClient(actor.tenantId, data);
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "update",
+      entity: "Client",
+      entityId: data.id,
+    });
 
     logger.info(
       {
@@ -95,6 +110,13 @@ export async function deleteClientAction(input: unknown): Promise<void> {
     requireRole(actor, "ADMIN");
     const data = deleteClientSchema.parse(input);
     await deleteClient(actor.tenantId, data.id);
+    await writeAuditLog({
+      tenantId: actor.tenantId,
+      actorId: actor.id,
+      action: "delete",
+      entity: "Client",
+      entityId: data.id,
+    });
 
     logger.info(
       {
