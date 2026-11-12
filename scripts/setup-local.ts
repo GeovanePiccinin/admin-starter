@@ -18,13 +18,23 @@ for (const [example, local] of environmentFiles) {
   }
 }
 
-function runPnpm(script: string): void {
-  const result = spawnSync("pnpm", ["run", script], {
-    cwd: root,
-    env: process.env,
-    stdio: "inherit",
-    shell: process.platform === "win32",
-  });
+function runPnpm(
+  script:
+    | "db:up"
+    | "db:migrate:development"
+    | "db:migrate:test"
+    | "db:seed:development",
+): void {
+  const isWindows = process.platform === "win32";
+  const result = spawnSync(
+    isWindows ? (process.env.ComSpec ?? "cmd.exe") : "pnpm",
+    isWindows ? ["/d", "/s", "/c", `pnpm run ${script}`] : ["run", script],
+    {
+      cwd: root,
+      env: process.env,
+      stdio: "inherit",
+    },
+  );
 
   if (result.error) {
     throw result.error;
@@ -37,8 +47,9 @@ function runPnpm(script: string): void {
 try {
   runPnpm("db:up");
   runPnpm("db:migrate:development");
+  runPnpm("db:migrate:test");
   runPnpm("db:seed:development");
-  console.log("Local development database is ready.");
+  console.log("Local development and test databases are ready.");
 } catch (error: unknown) {
   console.error(error instanceof Error ? error.message : "Local setup failed.");
   process.exitCode = 1;

@@ -79,7 +79,11 @@ export async function enforceLoginRateLimit(
   clientAddress?: string,
 ): Promise<void> {
   const normalizedEmail = email.trim().toLowerCase();
-  await consumeBucket(`login:email:${normalizedEmail}`, LOGIN_LIMIT, LOGIN_WINDOW_MS);
+  await consumeBucket(
+    `login:email:${normalizedEmail}`,
+    LOGIN_LIMIT,
+    LOGIN_WINDOW_MS,
+  );
   if (clientAddress) {
     await consumeBucket(
       `login:address:${clientAddress}`,

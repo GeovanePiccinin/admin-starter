@@ -7,9 +7,7 @@ export const exampleItemListQuerySchema = z.object({
 
   pageSize: z.number().int().positive().max(100).default(20),
 
-  sortBy: z
-    .enum(["name", "active", "createdAt"])
-    .default("name"),
+  sortBy: z.enum(["name", "active", "createdAt"]).default("name"),
 
   sortDirection: z.enum(["asc", "desc"]).default("asc"),
 });

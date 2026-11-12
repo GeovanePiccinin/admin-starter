@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  getUnsupportedScalarFields,
-  parsePrismaSchema,
-} from "./prisma-schema";
+import { getUnsupportedScalarFields, parsePrismaSchema } from "./prisma-schema";
 
 const schema = `
 enum State {

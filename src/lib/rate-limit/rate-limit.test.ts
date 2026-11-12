@@ -58,13 +58,15 @@ describe("database-backed rate limiting", () => {
   });
 
   it("limits login attempts and stores only an HMAC bucket key", async () => {
-    mocks.upsert.mockImplementation(async (query: { create: { bucketKey: string } }) => {
-      expect(query.create.bucketKey).not.toContain("person@example.com");
-      const key = query.create.bucketKey;
-      const count = (bucketCounts.get(key) ?? 0) + 1;
-      bucketCounts.set(key, count);
-      return { count };
-    });
+    mocks.upsert.mockImplementation(
+      async (query: { create: { bucketKey: string } }) => {
+        expect(query.create.bucketKey).not.toContain("person@example.com");
+        const key = query.create.bucketKey;
+        const count = (bucketCounts.get(key) ?? 0) + 1;
+        bucketCounts.set(key, count);
+        return { count };
+      },
+    );
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
       await enforceLoginRateLimit("Person@example.com", "192.0.2.1");

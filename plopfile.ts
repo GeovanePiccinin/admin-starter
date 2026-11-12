@@ -194,11 +194,16 @@ function getFieldDefault(field: PrismaSchemaField): string {
   }
 
   if (field.enumValues) {
-    const value = field.defaultValue ?? (field.optional ? "" : field.enumValues[0]);
+    const value =
+      field.defaultValue ?? (field.optional ? "" : field.enumValues[0]);
     return literal(String(value ?? ""));
   }
 
-  if (field.type === "Int" || field.type === "Float" || field.type === "Decimal") {
+  if (
+    field.type === "Int" ||
+    field.type === "Float" ||
+    field.type === "Decimal"
+  ) {
     const value = field.defaultValue;
     return value === undefined ? '""' : literal(String(value));
   }
@@ -331,8 +336,7 @@ function plopfile(plop: NodePlopAPI): void {
   const modelsByName = new Map(models.map((model) => [model.name, model]));
 
   plop.setGenerator("crud", {
-    description:
-      "Generate a tenant-scoped CRUD feature from a Prisma model",
+    description: "Generate a tenant-scoped CRUD feature from a Prisma model",
 
     prompts: [
       {
@@ -347,8 +351,9 @@ function plopfile(plop: NodePlopAPI): void {
         message: "Plural name for generated identifiers and route:",
         default: (answers: CrudAnswers) =>
           defaultPluralNames[answers.modelName] ??
-          pluralize(answers.modelName[0]!.toLowerCase() +
-            answers.modelName.slice(1)),
+          pluralize(
+            answers.modelName[0]!.toLowerCase() + answers.modelName.slice(1),
+          ),
         validate: (value: unknown): true | string => {
           if (
             typeof value !== "string" ||
@@ -365,8 +370,7 @@ function plopfile(plop: NodePlopAPI): void {
         name: "singularLabel",
         message: "Label singular exibido na interface:",
         default: (answers: CrudAnswers) =>
-          defaultLabels[answers.modelName]?.[0] ??
-          humanize(answers.modelName),
+          defaultLabels[answers.modelName]?.[0] ?? humanize(answers.modelName),
         validate: (value: unknown): true | string =>
           typeof value === "string" && value.trim()
             ? true
@@ -391,16 +395,14 @@ function plopfile(plop: NodePlopAPI): void {
         throw new Error("As respostas do gerador são obrigatórias.");
       }
 
-      const {
-        modelName,
-        pluralName,
-        singularLabel,
-        pluralLabel,
-      } = answers as CrudAnswers;
+      const { modelName, pluralName, singularLabel, pluralLabel } =
+        answers as CrudAnswers;
       const model = modelsByName.get(modelName);
 
       if (!model) {
-        throw new Error(`O model "${modelName}" não está disponível no schema.`);
+        throw new Error(
+          `O model "${modelName}" não está disponível no schema.`,
+        );
       }
 
       const fields = model.fields.map((field) =>
@@ -408,7 +410,9 @@ function plopfile(plop: NodePlopAPI): void {
       );
       const accessPolicy = getCrudAccessPolicy(model.name);
       const enumNames = [
-        ...new Set(fields.filter((field) => field.isEnum).map((field) => field.type)),
+        ...new Set(
+          fields.filter((field) => field.isEnum).map((field) => field.type),
+        ),
       ];
       const sortableFields = fields.map((field) => field.name);
       const defaultSortField =
@@ -436,7 +440,9 @@ function plopfile(plop: NodePlopAPI): void {
         enumNames,
         hasEnums: enumNames.length > 0,
         hasDateTimeFields: fields.some((field) => field.isDateTime),
-        hasInputFields: fields.some((field) => !field.isBoolean && !field.isEnum),
+        hasInputFields: fields.some(
+          (field) => !field.isBoolean && !field.isEnum,
+        ),
         hasLongTextFields: fields.some((field) => field.isLongText),
         sortableFields,
         defaultSortField,
@@ -447,11 +453,7 @@ function plopfile(plop: NodePlopAPI): void {
         tableColumnCount: fields.length + 1,
         tableColumnCountExpression: `{${fields.length + 1}}`,
       };
-      const featureDirectory = join(
-        "src",
-        "features",
-        toKebabCase(model.name),
-      );
+      const featureDirectory = join("src", "features", toKebabCase(model.name));
       const templateDirectory = join("plop", "templates", "crud");
       const fileTemplates = [
         ["form.tsx.hbs", `${toKebabCase(model.name)}-form.tsx`],
@@ -471,7 +473,13 @@ function plopfile(plop: NodePlopAPI): void {
 
       actions.push({
         type: "add" as const,
-        path: join("src", "app", "(dashboard)", templateData.routeName, "page.tsx"),
+        path: join(
+          "src",
+          "app",
+          "(dashboard)",
+          templateData.routeName,
+          "page.tsx",
+        ),
         templateFile: join(templateDirectory, "page.tsx.hbs"),
         data: templateData,
       });

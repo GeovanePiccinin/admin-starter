@@ -1,0 +1,47 @@
+name: Technical task
+description: Propose infrastructure, refactoring, maintenance, or engineering work.
+title: "chore: "
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Explain the technical situation and why this task is needed.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Proposed scope
+      description: Describe what should change and what should remain unchanged.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List verifiable outcomes, including relevant checks or tests.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and risks
+      description: Include affected systems, migration/data risks, and rollback considerations.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Add logs, diagrams, benchmark results, or links when relevant.
+  - type: checkboxes
+    id: completion
+    attributes:
+      label: Definition of done
+      options:
+        - label: The task has a bounded scope and measurable completion criteria.
+          required: true
+        - label: Data, security, and compatibility impacts have been considered.
+          required: true

@@ -9,16 +9,20 @@ Instale Docker Desktop com Compose, Node.js 22 e pnpm. Após clonar o repositór
 
 ```bash
 pnpm install
-pnpm setup:local
+pnpm run setup
 ```
 
 No PowerShell do Windows, use `pnpm.cmd` se a política de execução bloquear
 `pnpm.ps1`.
 
-`pnpm setup:local` copia `.env.development.example` e `.env.test.example` apenas
-se os respectivos arquivos locais não existirem. Em seguida, inicia PostgreSQL,
-aplica as migrations de desenvolvimento e executa o seed. Arquivos locais já
-existentes não são sobrescritos.
+`pnpm run setup` (alias de `pnpm run setup:local`) copia `.env.development.example` e
+`.env.test.example` apenas se os respectivos arquivos locais não existirem. Em
+seguida, inicia PostgreSQL, aplica as migrations nos bancos de desenvolvimento
+e teste, e executa o seed somente no banco de desenvolvimento. Arquivos locais
+já existentes não são sobrescritos.
+
+Use `pnpm run setup`, não `pnpm setup`: `setup` sem `run` é um comando próprio
+do pnpm para configurar o gerenciador, não um script do projeto.
 
 O serviço do Compose mantém bancos independentes:
 
@@ -32,17 +36,22 @@ confirmar que os dados locais podem ser apagados.
 
 ## Comandos locais
 
-| Comando | Resultado |
-|---|---|
-| `pnpm db:up` | Inicia PostgreSQL e aguarda o healthcheck. |
-| `pnpm db:down` | Para o serviço sem excluir o volume. |
-| `pnpm db:migrate` | Aplica migrations de desenvolvimento. |
-| `pnpm db:seed` | Executa o seed de desenvolvimento. |
-| `pnpm test:local` | Inicia PostgreSQL, migra o banco de teste e roda testes. |
-| `pnpm dev` | Executa Next.js localmente com o banco de desenvolvimento. |
+| Comando           | Resultado                                                        |
+| ----------------- | ---------------------------------------------------------------- |
+| `pnpm db:up`      | Inicia PostgreSQL e aguarda o healthcheck.                       |
+| `pnpm db:down`    | Para o serviço sem excluir o volume.                             |
+| `pnpm db:migrate` | Aplica migrations de desenvolvimento.                            |
+| `pnpm db:seed`    | Executa o seed de desenvolvimento.                               |
+| `pnpm test:local` | Inicia PostgreSQL, migra o banco de teste e roda testes.         |
+| `pnpm test`       | Executa uma vez a suíte contra o banco de teste já preparado.    |
+| `pnpm dev`        | Executa Next.js localmente com o banco de desenvolvimento.       |
+| `pnpm build`      | Executa o build local usando o alvo de desenvolvimento validado. |
 
 Também estão disponíveis `pnpm db:migrate:development`,
-`pnpm db:seed:development` e `pnpm test:run`.
+`pnpm db:migrate:test`, `pnpm db:seed:development`, `pnpm test:run` e
+`pnpm build:production` para um ambiente de build explicitamente configurado.
+Na CI, `pnpm build` usa o `DATABASE_URL` do banco efêmero de build; fora da CI,
+usa o banco local validado de desenvolvimento.
 
 A porta padrão do host é `54329`. Para alterá-la, configure o mesmo
 `STARTER_POSTGRES_PORT` em `.env.development` e `.env.test`; as URLs de banco

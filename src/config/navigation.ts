@@ -1,8 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  Boxes,
-  LayoutDashboard,
-} from "lucide-react";
+import { Boxes, LayoutDashboard } from "lucide-react";
 
 export interface NavigationItem {
   label: string;

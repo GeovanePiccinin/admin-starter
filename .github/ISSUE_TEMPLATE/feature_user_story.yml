@@ -1,0 +1,48 @@
+name: Feature / user story
+description: Propose a user-visible capability.
+title: "feat: "
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and problem
+      description: Who has this need, and why does it matter?
+    validations:
+      required: true
+  - type: textarea
+    id: story
+    attributes:
+      label: User story
+      description: "As a [user], I want [capability], so that [benefit]."
+      placeholder: As a ..., I want ..., so that ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Describe observable, testable outcomes.
+      placeholder: |
+        - [ ] Given ..., when ..., then ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence or design references
+      description: Link prototypes, screenshots, research, or related issues.
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies, risks, and out of scope
+      description: Note integrations, data/security implications, and exclusions.
+  - type: checkboxes
+    id: completion
+    attributes:
+      label: Definition of done
+      options:
+        - label: Acceptance criteria are testable.
+          required: true
+        - label: The proposal does not include credentials or personal data.
+          required: true

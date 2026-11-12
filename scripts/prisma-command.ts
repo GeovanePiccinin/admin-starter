@@ -32,6 +32,8 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : "Prisma command failed.");
+  console.error(
+    error instanceof Error ? error.message : "Prisma command failed.",
+  );
   process.exitCode = 1;
 });

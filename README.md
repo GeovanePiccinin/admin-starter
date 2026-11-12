@@ -13,7 +13,7 @@ Requisitos: Git, Docker Desktop com Compose, Node.js 22 e pnpm.
 git clone <URL-do-repositorio>
 cd <pasta-do-repositorio>
 pnpm install
-pnpm setup:local
+pnpm run setup
 pnpm dev
 ```
 
@@ -31,10 +31,10 @@ nunca os use em produção.
 No PowerShell do Windows, use `pnpm.cmd` se a política de execução bloquear
 `pnpm.ps1`.
 
-Para executar a suíte completa com o banco de testes:
+Para executar a suíte de testes uma vez:
 
 ```bash
-pnpm test:local
+pnpm test
 ```
 
 ## Documentação
@@ -47,6 +47,9 @@ pnpm test:local
   Sentry e privacidade.
 - [Auditoria e rate limit](./docs/audit-and-rate-limiting.md): eventos e limites
   aplicados.
+- [Contribuição](./CONTRIBUTING.md): branches, commits, revisão e validação.
+- [Desenvolvimento com IA](./docs/ai-assisted-development.md): uso responsável
+  de ferramentas de IA.
 
 ## Stack
 

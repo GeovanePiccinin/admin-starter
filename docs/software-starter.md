@@ -125,10 +125,10 @@ Produção exige `AUTH_SECRET` (ou `NEXTAUTH_SECRET`) forte e privado.
 
 O Docker Compose executa PostgreSQL 16 com dois bancos independentes:
 
-| Banco | Uso |
-|---|---|
-| `software_starter_dev` | Aplicação local e seed demonstrativo |
-| `software_starter_test` | Testes de integração que usam banco |
+| Banco                   | Uso                                  |
+| ----------------------- | ------------------------------------ |
+| `software_starter_dev`  | Aplicação local e seed demonstrativo |
+| `software_starter_test` | Testes de integração que usam banco  |
 
 O volume é nomeado e mantido entre paradas. A aplicação Next.js executa no host
 via pnpm; o container fornece somente PostgreSQL. A porta padrão do host é
@@ -159,7 +159,7 @@ eles não fazem reset. O seed é idempotente e limitado a desenvolvimento/teste.
 git clone <URL-do-repositorio>
 cd <pasta-do-repositorio>
 pnpm install
-pnpm setup:local
+pnpm run setup
 ```
 
 O script copia `.env.development.example` e `.env.test.example` apenas quando
@@ -176,20 +176,26 @@ pnpm dev
 ```
 
 Acesse <http://localhost:3000> e entre com o e-mail e senha definidos no
-ambiente local. `pnpm setup:local` inicia o container, aplica migrations no
-banco de desenvolvimento e executa o seed.
+ambiente local. `pnpm run setup` inicia o container, aplica migrations nos bancos
+de desenvolvimento e teste e executa o seed somente em desenvolvimento.
 
 ### Comandos úteis
 
-| Comando | Uso |
-|---|---|
-| `pnpm db:up` | Inicia o PostgreSQL e aguarda o healthcheck. |
-| `pnpm db:down` | Para o container sem excluir o volume. |
-| `pnpm db:migrate` | Aplica migrations no banco de desenvolvimento. |
-| `pnpm db:seed` | Executa o seed de desenvolvimento. |
-| `pnpm test:local` | Inicia o banco, migra o banco de teste e roda Vitest. |
-| `pnpm lint` | Executa ESLint. |
-| `pnpm db:generate` | Gera Prisma Client a partir do schema. |
+| Comando                 | Uso                                                        |
+| ----------------------- | ---------------------------------------------------------- |
+| `pnpm db:up`            | Inicia o PostgreSQL e aguarda o healthcheck.               |
+| `pnpm db:down`          | Para o container sem excluir o volume.                     |
+| `pnpm db:migrate`       | Aplica migrations no banco de desenvolvimento.             |
+| `pnpm db:seed`          | Executa o seed de desenvolvimento.                         |
+| `pnpm test`             | Executa a suíte uma vez usando o banco de teste preparado. |
+| `pnpm test:local`       | Inicia o banco, migra o banco de teste e roda Vitest.      |
+| `pnpm lint`             | Executa ESLint.                                            |
+| `pnpm format`           | Formata arquivos suportados pelo Prettier.                 |
+| `pnpm format:check`     | Verifica formatação sem modificar arquivos.                |
+| `pnpm typecheck`        | Executa `tsc --noEmit` mantendo TypeScript strict.         |
+| `pnpm build`            | Faz build local usando o alvo de desenvolvimento validado. |
+| `pnpm build:production` | Faz build com destino explícito e `DATABASE_URL`.          |
+| `pnpm db:generate`      | Gera Prisma Client a partir do schema.                     |
 
 No PowerShell do Windows, use `pnpm.cmd` se a política de execução bloquear
 `pnpm.ps1`.

@@ -57,8 +57,11 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Format check
+        run: pnpm format:check
+
       - name: TypeScript
-        run: pnpm exec tsc --noEmit
+        run: pnpm typecheck
 
       - name: Run migrations
         run: pnpm db:migrate:test

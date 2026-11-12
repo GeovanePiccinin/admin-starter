@@ -4,16 +4,22 @@
   "private": true,
   "scripts": {
     "postinstall": "pnpm run db:generate",
+    "prepare": "husky",
     "dev": "tsx scripts/run-env.ts development node_modules/next/dist/bin/next dev",
     "dev:test": "tsx scripts/run-env.ts test node_modules/next/dist/bin/next dev",
-    "build": "tsx scripts/run-env.ts production node_modules/next/dist/bin/next build",
+    "build": "tsx scripts/run-build.ts",
+    "build:production": "tsx scripts/run-env.ts production node_modules/next/dist/bin/next build",
     "start": "tsx scripts/run-env.ts production node_modules/next/dist/bin/next start",
     "lint": "eslint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
     "db:generate": "tsx scripts/run-env.ts schema node_modules/prisma/build/index.js generate",
     "db:up": "docker compose --env-file .env.development up -d --wait postgres",
     "db:down": "docker compose --env-file .env.development stop postgres",
     "db:migrate": "pnpm run db:migrate:development",
     "db:seed": "pnpm run db:seed:development",
+    "setup": "pnpm run setup:local",
     "setup:local": "tsx scripts/setup-local.ts",
     "db:check:development": "tsx scripts/run-env.ts development node_modules/tsx/dist/cli.mjs scripts/check-db.ts",
     "db:check:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs scripts/check-db.ts",
@@ -25,9 +31,19 @@
     "db:seed:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs prisma/seed.ts",
     "db:seed:production": "tsx scripts/run-env.ts production node_modules/tsx/dist/cli.mjs prisma/seed.ts",
     "db:reset:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs scripts/reset-test-db.ts",
-    "test": "tsx scripts/run-env.ts test node_modules/vitest/vitest.mjs",
+    "test": "tsx scripts/run-env.ts test node_modules/vitest/vitest.mjs run",
     "test:run": "tsx scripts/run-env.ts test node_modules/vitest/vitest.mjs run",
+    "test:watch": "tsx scripts/run-env.ts test node_modules/vitest/vitest.mjs",
     "test:local": "pnpm run db:up && pnpm run db:migrate:test && pnpm run test:run"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs,cjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{css,md,mdx,json,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -63,6 +79,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -72,9 +90,13 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
     "jsdom": "^30.0.1",
+    "lint-staged": "^17.6.0",
     "pino-pretty": "^13.1.3",
     "plop": "^4.0.5",
+    "prettier": "^3.10.1",
     "prisma": "^7.9.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",

@@ -34,9 +34,7 @@ export async function verifyLiveDatabase(): Promise<{
     const result = await client.query<{
       database: string;
       schema: string;
-    }>(
-      "SELECT current_database() AS database, current_schema() AS schema",
-    );
+    }>("SELECT current_database() AS database, current_schema() AS schema");
     const actual = result.rows[0];
 
     if (

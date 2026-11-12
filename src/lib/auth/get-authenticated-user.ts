@@ -90,10 +90,7 @@ export async function requireAuthenticatedActor(): Promise<AuthenticatedActor> {
   return actor;
 }
 
-export function requireRole(
-  actor: AuthenticatedActor,
-  role: Role,
-): void {
+export function requireRole(actor: AuthenticatedActor, role: Role): void {
   if (actor.role !== role) {
     throw new AuthorizationError();
   }
