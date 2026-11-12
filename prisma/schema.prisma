@@ -9,31 +9,6 @@ datasource db {
 
 enum Role {
   ADMIN
-  PROFESSIONAL
-}
-
-enum AppointmentStatus {
-  SCHEDULED
-  CONFIRMED
-  CANCELLED
-  NO_SHOW
-}
-
-enum AppointmentOrigin {
-  MANUAL
-  ONLINE
-  PHONE
-}
-
-enum AttendanceStatus {
-  SCHEDULED
-  IN_PROGRESS
-  COMPLETED
-}
-
-enum PaymentStatus {
-  PENDENTE
-  PAGO
 }
 
 model Tenant {
@@ -42,17 +17,9 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users                User[]
-  clients              Client[]
-  clientProfessionals  ClientProfessional[]
-  professionals        Professional[]
-  professionalServices ProfessionalService[]
-  services             Service[]
-  appointments         Appointment[]
-  attendances          Attendance[]
-  clientRecords        ClientRecord[]
-  payments             Payment[]
-  auditLogs            AuditLog[]
+  users        User[]
+  exampleItems ExampleItem[]
+  auditLogs    AuditLog[]
 
   @@map("tenants")
 }
@@ -63,200 +30,33 @@ model User {
   name         String
   email        String   @unique
   passwordHash String
-  role         Role     @default(PROFESSIONAL)
+  role         Role     @default(ADMIN)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  professional Professional?
-  auditLogs    AuditLog[]
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  auditLogs AuditLog[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
   @@map("users")
 }
 
-model Client {
-  id        String   @id @default(cuid())
-  tenantId  String
-  name      String
-  email     String?
-  phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant                  Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  appointments            Appointment[]
-  clientRecords           ClientRecord[]
-  professionalAssignments ClientProfessional[]
-
-  @@unique([tenantId, id])
-  @@index([tenantId])
-  @@index([tenantId, name])
-  @@map("clients")
-}
-
-model Professional {
-  id        String   @id @default(cuid())
-  tenantId  String
-  userId    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user                 User                  @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Cascade)
-  appointments         Appointment[]
-  professionalServices ProfessionalService[]
-  clientAssignments    ClientProfessional[]
-
-  @@unique([tenantId, id])
-  @@unique([tenantId, userId])
-  @@index([tenantId])
-  @@map("professionals")
-}
-
-model Service {
+model ExampleItem {
   id          String   @id @default(cuid())
   tenantId    String
   name        String
   description String?
-  duration    Int
-  price       Decimal  @db.Decimal(10, 2)
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant                  Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  appointments            Appointment[]
-  professionalAssignments ProfessionalService[]
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, id])
   @@index([tenantId])
-  @@index([tenantId, active])
   @@index([tenantId, name])
-  @@map("services")
-}
-
-model ProfessionalService {
-  tenantId       String
-  professionalId String
-  serviceId      String
-
-  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  professional Professional @relation(fields: [tenantId, professionalId], references: [tenantId, id], onDelete: Cascade)
-  service      Service      @relation(fields: [tenantId, serviceId], references: [tenantId, id], onDelete: Cascade)
-
-  @@id([tenantId, professionalId, serviceId])
-  @@index([tenantId, serviceId])
-  @@map("professional_services")
-}
-
-model ClientProfessional {
-  tenantId       String
-  clientId       String
-  professionalId String
-  createdAt      DateTime @default(now())
-
-  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client       Client       @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
-  professional Professional @relation(fields: [tenantId, professionalId], references: [tenantId, id], onDelete: Cascade)
-
-  @@id([tenantId, clientId, professionalId])
-  @@index([tenantId, professionalId, clientId])
-  @@map("client_professionals")
-}
-
-model Appointment {
-  id             String            @id @default(cuid())
-  tenantId       String
-  clientId       String
-  professionalId String
-  serviceId      String
-  startAt        DateTime
-  endAt          DateTime
-  status         AppointmentStatus @default(SCHEDULED)
-  origin         AppointmentOrigin @default(MANUAL)
-  notes          String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-
-  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client       Client       @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Restrict)
-  professional Professional @relation(fields: [tenantId, professionalId], references: [tenantId, id], onDelete: Restrict)
-  service      Service      @relation(fields: [tenantId, serviceId], references: [tenantId, id], onDelete: Restrict)
-  attendance   Attendance?
-
-  @@unique([tenantId, id])
-  @@index([tenantId])
-  @@index([tenantId, startAt])
-  @@index([tenantId, professionalId, startAt])
-  @@index([tenantId, clientId])
-  @@index([tenantId, status])
-  @@map("appointments")
-}
-
-model Attendance {
-  id            String           @id @default(cuid())
-  tenantId      String
-  appointmentId String
-  status        AttendanceStatus @default(SCHEDULED)
-  startedAt     DateTime?
-  completedAt   DateTime?
-  notes         String?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  appointment   Appointment    @relation(fields: [tenantId, appointmentId], references: [tenantId, id], onDelete: Restrict)
-  clientRecords ClientRecord[]
-  payment       Payment?
-
-  @@unique([tenantId, id])
-  @@unique([tenantId, appointmentId])
-  @@index([tenantId])
-  @@index([tenantId, status])
-  @@map("attendances")
-}
-
-model ClientRecord {
-  id                   String   @id @default(cuid())
-  tenantId             String
-  clientId             String
-  attendanceId         String?
-  content              String
-  authorProfessionalId String?
-  authorName           String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client     Client      @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Restrict)
-  attendance Attendance? @relation(fields: [tenantId, attendanceId], references: [tenantId, id], onDelete: Restrict)
-
-  @@unique([tenantId, id])
-  @@index([tenantId])
-  @@index([tenantId, clientId])
-  @@index([tenantId, attendanceId])
-  @@map("client_records")
-}
-
-model Payment {
-  id           String        @id @default(cuid())
-  tenantId     String
-  attendanceId String
-  status       PaymentStatus @default(PENDENTE)
-  paidAt       DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  attendance Attendance @relation(fields: [tenantId, attendanceId], references: [tenantId, id], onDelete: Restrict)
-
-  @@unique([tenantId, id])
-  @@unique([tenantId, attendanceId])
-  @@index([tenantId])
-  @@index([tenantId, status])
-  @@map("payments")
+  @@map("example_items")
 }
 
 model AuditLog {

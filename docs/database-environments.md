@@ -1,75 +1,78 @@
-# Database environments
+# Ambientes de banco de dados
 
-The project selects database configuration explicitly; do not rely on `.env`
-for a Prisma or application command.
+O desenvolvimento local usa PostgreSQL 16 no Docker Compose. A aplicação
+Next.js executa no host via pnpm.
 
-## Development
+## Requisitos e primeira configuração
 
-1. Create a local PostgreSQL database named `sistema_agendamento_dev`.
-2. Copy `.env.development.example` to `.env.development`.
-3. Set `DATABASE_URL` to that local database and configure local-only demo
-   passwords.
-4. Run `pnpm dev`, `pnpm db:migrate:development`, or
-   `pnpm db:seed:development`.
+Instale Docker Desktop com Compose, Node.js 22 e pnpm. Após clonar o repositório:
 
-The development URL must use loopback and a database name ending in `_dev` or
-`_development`.
-
-## Tests
-
-1. Create a dedicated local PostgreSQL database named
-   `sistema_agendamento_test`.
-2. Copy `.env.test.example` to `.env.test`.
-3. Set `DATABASE_URL` and `TEST_DATABASE_URL` to the same loopback database.
-4. Run tests with `pnpm test:run`; run additive migrations with
-   `pnpm db:migrate:test`.
-
-The Vitest config and command runner validate the test URL, reject a target
-matching `.env` or `.env.development`, and remove inherited PostgreSQL
-connection overrides (including settings loaded by Next.js before Prisma
-starts). Missing or conflicting test configuration aborts before tests run.
-
-`pnpm db:reset:test` is destructive and resets every record in the validated
-test database before applying migrations and running the demo seed. It requires
-the exact explicit approval to be supplied for that invocation:
-
-```powershell
-$env:PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION = "pode executar o plano"
-pnpm db:reset:test
-Remove-Item Env:PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION
+```bash
+pnpm install
+pnpm setup:local
 ```
 
-Do not use the test database for development data.
+No PowerShell do Windows, use `pnpm.cmd` se a política de execução bloquear
+`pnpm.ps1`.
 
-## Production
+`pnpm setup:local` copia `.env.development.example` e `.env.test.example` apenas
+se os respectivos arquivos locais não existirem. Em seguida, inicia PostgreSQL,
+aplica as migrations de desenvolvimento e executa o seed. Arquivos locais já
+existentes não são sobrescritos.
 
-The deployment environment must provide `DATABASE_URL`; production commands
-never select a local database URL. Next.js may load local env files for other
-settings, but the deployment-provided `DATABASE_URL` is passed as a process
-variable and takes precedence. Use `pnpm build`, `pnpm start`, and
-`pnpm db:check:production`, `pnpm db:migrate:production`, and
-`pnpm db:seed:production` only in the deployment environment. Run
-`pnpm db:check:production` first and confirm its reported host, database, and
-schema before any write.
+O serviço do Compose mantém bancos independentes:
 
-Demo seeding is disabled in production by default. It creates a demo tenant,
-accounts, and sample business records. To explicitly run it in a production
-environment, set `ALLOW_DEMO_SEED_IN_PRODUCTION=true` and provide distinct
-`DEMO_ADMIN_PASSWORD` and `DEMO_PROFESSIONAL_PASSWORD` values of at least 16
-characters, then run `pnpm db:seed:production`. The seed refuses to overwrite
-conflicting accounts and is limited to its fixed demo IDs, but it may update
-existing records with those IDs in the demo tenant. Never reuse these
-credentials for real accounts. Never use reset commands against production.
+- `software_starter_dev` para desenvolvimento e seed.
+- `software_starter_test` para testes.
 
-The migration `20261104130000_backfill_client_professional_assignments` creates
-assignments for existing client-professional pairs evidenced by appointments.
-Clients without appointments remain unassigned and must be explicitly assigned
-by an administrator; the migration does not infer a relationship for them.
+Ambos usam credenciais de exemplo locais e um volume nomeado do projeto. O
+Compose cria o banco de teste na inicialização de um volume novo. `pnpm
+db:down` para o container, mas preserva o volume. Não remova o volume sem
+confirmar que os dados locais podem ser apagados.
 
-## Other commands
+## Comandos locais
 
-- `pnpm db:generate` generates Prisma Client from the schema without connecting
-  to a database.
-- `pnpm db:check:development` and `pnpm db:check:test` validate and report the
-  live database target without writing.
-- `.env` is not a source of database configuration for project scripts.
+| Comando | Resultado |
+|---|---|
+| `pnpm db:up` | Inicia PostgreSQL e aguarda o healthcheck. |
+| `pnpm db:down` | Para o serviço sem excluir o volume. |
+| `pnpm db:migrate` | Aplica migrations de desenvolvimento. |
+| `pnpm db:seed` | Executa o seed de desenvolvimento. |
+| `pnpm test:local` | Inicia PostgreSQL, migra o banco de teste e roda testes. |
+| `pnpm dev` | Executa Next.js localmente com o banco de desenvolvimento. |
+
+Também estão disponíveis `pnpm db:migrate:development`,
+`pnpm db:seed:development` e `pnpm test:run`.
+
+A porta padrão do host é `54329`. Para alterá-la, configure o mesmo
+`STARTER_POSTGRES_PORT` em `.env.development` e `.env.test`; as URLs de banco
+interpolam esse valor. Os comandos locais aceitam somente conexões loopback aos
+nomes de banco esperados. Isso impede que apontem aos bancos do sistema
+original.
+
+## Testes e CI
+
+Testes locais usam `software_starter_test`, nunca dados de desenvolvimento. O
+runner exige `.env.test`, valida que `DATABASE_URL` e `TEST_DATABASE_URL`
+apontam ao mesmo banco de teste, rejeita destinos inesperados/não locais e
+remove variáveis PostgreSQL herdadas do processo.
+
+A CI usa um serviço PostgreSQL 16 efêmero criado para cada execução. Ele mantém
+um banco de build separado e não usa o volume local nem banco de produção.
+
+## Produção
+
+Comandos de produção exigem `DATABASE_URL` fornecida pelo ambiente de deploy;
+setup local e testes não os invocam. Antes de uma migration ou seed em produção,
+valide o destino com `pnpm db:check:production` e confirme host, banco e schema.
+Não use comandos de reset em produção. O seed demonstrativo é desativado nesse
+ambiente.
+
+## Baseline do starter
+
+O schema ativo e a migration inicial definem o starter: usuários e itens de
+exemplo tenant-scoped, auditoria e rate limit. O histórico do sistema de
+agendamentos está preservado em `prisma/migrations-legacy/` e não faz parte do
+caminho ativo. O seed cria apenas um administrador local e um item de exemplo.
+Não aponte esta configuração a um banco existente nem aplique o histórico
+arquivado ao banco do sistema original.

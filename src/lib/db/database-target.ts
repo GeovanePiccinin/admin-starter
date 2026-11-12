@@ -7,6 +7,39 @@ export interface DatabaseTarget {
   schema: string;
 }
 
+const localDatabaseNames = {
+  development: "software_starter_dev",
+  test: "software_starter_test",
+} as const;
+
+export function resolveDatabaseUrl(
+  connectionString: string,
+  variables: Record<string, string | undefined>,
+): string {
+  return connectionString.replace(
+    /\$\{([A-Z0-9_]+)\}/g,
+    (placeholder, variable: string) => {
+      if (variable !== "STARTER_POSTGRES_PORT") {
+        throw new Error(`Unsupported DATABASE_URL placeholder: ${variable}.`);
+      }
+
+      const value = variables[variable];
+      const port = Number(value);
+      if (
+        !value ||
+        !/^\d{1,5}$/.test(value) ||
+        !Number.isInteger(port) ||
+        port < 1 ||
+        port > 65535
+      ) {
+        throw new Error("STARTER_POSTGRES_PORT must be a valid TCP port.");
+      }
+
+      return value;
+    },
+  );
+}
+
 export function clearPostgresEnvironmentOverrides(): void {
   for (const variable of Object.keys(process.env)) {
     if (variable.toUpperCase().startsWith("PG")) {
@@ -85,19 +118,19 @@ export function assertEnvironmentDatabase(
   if (environment === "development") {
     if (
       !loopbackHosts.includes(target.host) ||
-      !/(?:_dev|_development)$/.test(target.database)
+      target.database !== localDatabaseNames.development
     ) {
       throw new Error(
-        "Development must use a dedicated local database ending in _dev or _development.",
+        `Development must use the dedicated local database ${localDatabaseNames.development}.`,
       );
     }
   } else if (environment === "test") {
     if (
       !loopbackHosts.includes(target.host) ||
-      !target.database.endsWith("_test")
+      target.database !== localDatabaseNames.test
     ) {
       throw new Error(
-        "Tests must use a dedicated local database ending in _test.",
+        `Tests must use the dedicated local database ${localDatabaseNames.test}.`,
       );
     }
   } else if (target.database.endsWith("_test")) {

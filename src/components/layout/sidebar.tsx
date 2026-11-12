@@ -79,7 +79,7 @@ export function Sidebar() {
         ].join(" ")}
       >
         {!collapsed && (
-          <span className="font-semibold tracking-tight">Agendamento</span>
+          <span className="font-semibold tracking-tight">Software Starter</span>
         )}
 
         <Button

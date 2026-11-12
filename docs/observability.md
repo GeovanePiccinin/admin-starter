@@ -1,54 +1,48 @@
-# Error handling and observability
+# Tratamento de erros e observabilidade
 
-## Structured logs
+## Logs estruturados
 
-The server uses Pino. Set `LOG_LEVEL` to a supported Pino level (`fatal`,
-`error`, `warn`, `info`, `debug`, `trace`, or `silent`); the default is `info`.
-Development logs are formatted for readability, while production logs remain
-structured JSON.
+O servidor usa Pino. Configure `LOG_LEVEL` com um nível suportado (`fatal`,
+`error`, `warn`, `info`, `debug`, `trace` ou `silent`); o padrão é `info`.
+Logs de desenvolvimento são formatados para leitura e logs de produção são
+JSON estruturado.
 
-Server Actions run through a shared error boundary. Each operation receives an
-`operationId`, which is included in logs and in the safe error message shown for
-unexpected failures. The authenticated tenant is added to the async operation
-context; names, e-mails, phone numbers, clinical content, credentials, cookies,
-and tokens are not included in error logs.
+Server Actions passam por um tratamento compartilhado. Cada operação recebe um
+`operationId`, incluído nos logs e na mensagem segura de erro para falhas
+inesperadas. O tenant autenticado é associado ao contexto assíncrono da
+operação. Nomes, e-mails, telefones, conteúdo clínico, credenciais, cookies e
+tokens não devem ser incluídos nos logs de erro.
 
-Validation, authentication, authorization, and expected domain failures are
-handled separately from unexpected infrastructure failures. Only unexpected
-failures are reported to Sentry. Client responses for unexpected failures
-contain a generic message and the operation reference, not the underlying
-exception.
+Erros de validação, autenticação, autorização, domínio e rate limit são
+classificados separadamente de falhas inesperadas de infraestrutura. Apenas
+falhas inesperadas são reportadas ao Sentry. A resposta ao cliente usa uma
+mensagem genérica e a referência da operação, sem expor a exceção original.
 
 ## Sentry
 
-Sentry is optional. When no DSN is configured, SDK initialization and reporting
-are disabled.
+Sentry é opcional. Sem DSN, inicialização e envio ficam desativados.
 
-Configure these variables in the deployment environment:
+Configure no ambiente de deploy:
 
-- `SENTRY_DSN`: server and Edge runtime DSN.
-- `NEXT_PUBLIC_SENTRY_DSN`: browser DSN; set it at build time as a Next.js
-  public environment variable.
-- `NEXT_PUBLIC_SENTRY_ENVIRONMENT`: optional browser environment label. Server
-  events use `APP_ENV`, then `NODE_ENV`.
+- `SENTRY_DSN`: DSN dos runtimes de servidor e Edge.
+- `NEXT_PUBLIC_SENTRY_DSN`: DSN do navegador, definido durante o build do
+  Next.js.
+- `NEXT_PUBLIC_SENTRY_ENVIRONMENT`: rótulo opcional para eventos do navegador.
+  Eventos do servidor usam `APP_ENV` e, como alternativa, `NODE_ENV`.
 
-For Vercel, set `SENTRY_DSN` for the server runtime and
-`NEXT_PUBLIC_SENTRY_DSN` for the build/runtime that serves browser assets.
-Use the project DSN from Sentry; do not commit DSNs or auth tokens. Source-map
-upload is not enabled by this configuration.
+Use os DSNs do projeto no Sentry; não versione DSNs ou tokens de autenticação.
+O upload de source maps não está habilitado nesta configuração.
 
-Sentry is initialized for browser, Node.js, and Edge runtimes. Next.js request
-errors and global rendering errors are captured. Automatic user, cookie, HTTP
-header/body, query parameter, GraphQL, AI, MCP, database payload, queue, and
-stack-variable collection is disabled. The event scrubber removes user, request,
-extra, breadcrumb, and arbitrary context data, retaining only exception stack
-frames and allowlisted correlation tags. Exception messages are replaced with a
-generic value before sending.
+Sentry está inicializado para navegador, Node.js e Edge. Erros de requisição e
+renderização do Next.js são capturados. A coleta automática de usuário,
+cookies, headers/corpos HTTP, query parameters, payloads de banco e variáveis
+de stack está desabilitada. O scrubber de eventos restringe dados e substitui
+mensagens de exceção por texto genérico.
 
-## Operational verification
+## Verificação operacional
 
-After setting DSNs, deploy a test build and trigger a controlled application
-error in a non-production environment. Confirm the event appears with its
-environment and `operation_id`/`operation` tags and without request payload,
-user identity, or exception message. Do not trigger test errors against real
-users or production data.
+Depois de configurar DSNs, publique um build de teste e provoque uma falha
+controlada em ambiente não produtivo. Confirme que o evento contém ambiente e
+tags de correlação (`operation`/`operation_id`), sem payload de requisição,
+identidade de usuário ou mensagem da exceção. Não provoque falhas de teste
+contra usuários reais ou dados de produção.

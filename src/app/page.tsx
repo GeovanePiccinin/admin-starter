@@ -1,33 +1,33 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  CalendarCheck2,
-  CalendarDays,
-  ClipboardList,
-  Clock3,
-  UsersRound,
+  Boxes,
+  Code2,
+  Database,
+  Layers3,
+  ShieldCheck,
 } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 
 const highlights = [
   {
-    icon: CalendarDays,
-    title: "Agenda organizada",
+    icon: Layers3,
+    title: "Uma base pronta para evoluir",
     description:
-      "Visualize os horários e acompanhe os agendamentos em um só lugar.",
+      "Arquitetura organizada por funcionalidades, com componentes reutilizáveis e uma feature de exemplo.",
   },
   {
-    icon: UsersRound,
-    title: "Clientes e profissionais",
+    icon: ShieldCheck,
+    title: "Acesso protegido",
     description:
-      "Tenha as informações de clientes, profissionais e serviços sempre à mão.",
+      "Autenticação por credenciais, autorização administrativa e isolamento de dados por tenant.",
   },
   {
-    icon: ClipboardList,
-    title: "Atendimentos acompanhados",
+    icon: Database,
+    title: "Ambiente local reproduzível",
     description:
-      "Consulte os atendimentos e o histórico do cliente com mais contexto.",
+      "PostgreSQL 16 em Docker Compose, bancos separados para desenvolvimento e testes.",
   },
 ];
 
@@ -37,17 +37,12 @@ export default function Home() {
       <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
         <Link href="/" className="flex items-center gap-2.5">
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <CalendarCheck2 aria-hidden="true" className="size-5" />
+            <Code2 aria-hidden="true" className="size-5" />
           </span>
-          <span className="font-semibold tracking-tight">
-            Sistema de Agendamento
-          </span>
+          <span className="font-semibold tracking-tight">Software Starter</span>
         </Link>
 
-        <Link
-          href="/login"
-          className={buttonVariants({ variant: "outline" })}
-        >
+        <Link href="/login" className={buttonVariants({ variant: "outline" })}>
           Entrar
         </Link>
       </header>
@@ -61,101 +56,62 @@ export default function Home() {
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2 rounded-full border bg-card/80 px-3 py-1 text-sm text-muted-foreground shadow-sm">
               <span className="size-2 rounded-full bg-primary" />
-              Sua rotina de atendimentos, mais simples
+              Base técnica para novos produtos web
             </span>
             <h1 className="mt-7 text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
-              Mais organização para cuidar de cada{" "}
-              <span className="text-primary">atendimento.</span>
+              Comece com uma base{" "}
+              <span className="text-primary">pronta para crescer.</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
-              Organize os agendamentos de clientes, acompanhe os horários da
-              equipe e mantenha as informações do atendimento em um só sistema.
+              Um starter full-stack com autenticação, autorização,
+              multi-tenancy, persistência, testes e observabilidade. Clone,
+              execute localmente e evolua a partir de uma feature funcional.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/login"
-                className={buttonVariants({ size: "lg" })}
-              >
-                Acessar o sistema
+              <Link href="/login" className={buttonVariants({ size: "lg" })}>
+                Acessar o starter
                 <ArrowRight aria-hidden="true" />
               </Link>
               <p className="self-center text-sm text-muted-foreground">
-                Entre com sua conta para continuar.
+                Acesso restrito a usuários autenticados.
               </p>
             </div>
             <div className="mt-10 flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock3 aria-hidden="true" className="size-4 text-primary" />
-              Agenda, clientes e atendimentos conectados.
+              <Boxes aria-hidden="true" className="size-4 text-primary" />
+              Exemplo pronto para servir de referência a novas features.
             </div>
           </div>
 
           <div className="relative mx-auto w-full max-w-xl">
             <div className="absolute -inset-4 -z-10 rounded-[2rem] bg-primary/10 blur-2xl" />
             <div className="overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-2xl shadow-primary/10">
-              <div className="flex items-center justify-between border-b px-5 py-4">
-                <div>
-                  <p className="text-sm font-semibold">Visão da agenda</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Um dia mais fácil de acompanhar
-                  </p>
-                </div>
-                <span className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground">
-                  Hoje
-                </span>
+              <div className="border-b px-5 py-4">
+                <p className="text-sm font-semibold">Fundação do projeto</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Aplicação, dados e operações essenciais
+                </p>
               </div>
               <div className="space-y-3 p-5">
-                <div className="flex items-center gap-4 rounded-xl border bg-background p-4">
-                  <span className="w-14 text-sm font-medium tabular-nums text-muted-foreground">
-                    09:00
-                  </span>
-                  <span className="h-12 w-1 rounded-full bg-primary" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">
-                      Atendimento
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Cliente · Serviço
-                    </p>
+                {[
+                  ["Aplicação", "Next.js · React · TypeScript"],
+                  ["Persistência", "PostgreSQL · Prisma ORM"],
+                  ["Acesso", "NextAuth · sessão JWT"],
+                  ["Qualidade", "Vitest · ESLint · CI"],
+                ].map(([area, technologies]) => (
+                  <div
+                    key={area}
+                    className="flex flex-col gap-1 rounded-xl border bg-background p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <span className="text-sm font-semibold">{area}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {technologies}
+                    </span>
                   </div>
-                  <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                    Confirmado
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 rounded-xl border bg-background p-4">
-                  <span className="w-14 text-sm font-medium tabular-nums text-muted-foreground">
-                    10:30
-                  </span>
-                  <span className="h-12 w-1 rounded-full bg-chart-2" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">
-                      Atendimento
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Cliente · Serviço
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
-                    Agendado
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 rounded-xl border border-dashed bg-background/60 p-4">
-                  <span className="w-14 text-sm font-medium tabular-nums text-muted-foreground">
-                    13:00
-                  </span>
-                  <span className="h-12 w-1 rounded-full bg-border" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-muted-foreground">
-                      Próximo horário disponível
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Organize a agenda da equipe
-                    </p>
-                  </div>
-                </div>
+                ))}
               </div>
               <div className="flex items-center justify-between border-t bg-muted/40 px-5 py-3 text-xs text-muted-foreground">
-                <span>Agenda em um só lugar</span>
-                <CalendarDays aria-hidden="true" className="size-4" />
+                <span>Desenvolvimento local com Docker Compose</span>
+                <Database aria-hidden="true" className="size-4" />
               </div>
             </div>
           </div>
@@ -166,14 +122,15 @@ export default function Home() {
         <div className="mx-auto w-full max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold text-primary">
-              Feito para sua rotina
+              Software Starter
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-              Do agendamento ao atendimento, tudo mais claro.
+              Infraestrutura reutilizável, domínio flexível.
             </h2>
             <p className="mt-4 leading-7 text-muted-foreground">
-              Reúna as informações essenciais para organizar o trabalho e
-              oferecer uma experiência mais cuidadosa aos seus clientes.
+              A feature ExampleItem demonstra validação, Server Actions,
+              persistência tenant-scoped, autorização administrativa e
+              interface CRUD sem impor um domínio de produto.
             </p>
           </div>
 
@@ -198,7 +155,7 @@ export default function Home() {
 
       <footer className="border-t">
         <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-4 px-6 py-6 text-sm text-muted-foreground sm:flex-row lg:px-8">
-          <p>Sistema de Agendamento</p>
+          <p>Software Starter · base para evolução incremental</p>
           <Link
             href="/login"
             className="font-medium text-primary underline-offset-4 hover:underline"

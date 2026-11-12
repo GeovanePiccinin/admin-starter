@@ -15,7 +15,6 @@ export type AuthenticatedActor = {
   name: string;
   email: string;
   role: Role;
-  professionalId: string | null;
 };
 
 export class AuthenticationError extends Error {
@@ -50,11 +49,6 @@ export async function findAuthenticatedActor(): Promise<AuthenticatedActor | nul
       name: true,
       email: true,
       role: true,
-      professional: {
-        select: {
-          id: true,
-        },
-      },
     },
   });
 
@@ -68,7 +62,6 @@ export async function findAuthenticatedActor(): Promise<AuthenticatedActor | nul
     name: user.name,
     email: user.email,
     role: user.role,
-    professionalId: user.professional?.id ?? null,
   };
 
   const operation = getObservabilityContext()?.operation;

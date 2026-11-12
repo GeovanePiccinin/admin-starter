@@ -1,4 +1,4 @@
-export type CrudRole = "ADMIN" | "PROFESSIONAL";
+export type CrudRole = "ADMIN";
 
 export interface CrudAccessPolicy {
   scaffoldSupported: boolean;
@@ -7,13 +7,12 @@ export interface CrudAccessPolicy {
   manageRoles: readonly CrudRole[];
 }
 
-const allRoles: readonly CrudRole[] = ["ADMIN", "PROFESSIONAL"];
 const adminOnly: readonly CrudRole[] = ["ADMIN"];
 
 const policies: Record<string, CrudAccessPolicy> = {
-  Service: {
+  ExampleItem: {
     scaffoldSupported: true,
-    readRoles: allRoles,
+    readRoles: adminOnly,
     createRoles: adminOnly,
     manageRoles: adminOnly,
   },

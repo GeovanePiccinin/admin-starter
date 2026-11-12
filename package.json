@@ -1,5 +1,5 @@
 {
-  "name": "sistema-agendamento",
+  "name": "software-starter",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,6 +10,11 @@
     "start": "tsx scripts/run-env.ts production node_modules/next/dist/bin/next start",
     "lint": "eslint",
     "db:generate": "tsx scripts/run-env.ts schema node_modules/prisma/build/index.js generate",
+    "db:up": "docker compose --env-file .env.development up -d --wait postgres",
+    "db:down": "docker compose --env-file .env.development stop postgres",
+    "db:migrate": "pnpm run db:migrate:development",
+    "db:seed": "pnpm run db:seed:development",
+    "setup:local": "tsx scripts/setup-local.ts",
     "db:check:development": "tsx scripts/run-env.ts development node_modules/tsx/dist/cli.mjs scripts/check-db.ts",
     "db:check:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs scripts/check-db.ts",
     "db:check:production": "tsx scripts/run-env.ts production node_modules/tsx/dist/cli.mjs scripts/check-db.ts",
@@ -21,7 +26,8 @@
     "db:seed:production": "tsx scripts/run-env.ts production node_modules/tsx/dist/cli.mjs prisma/seed.ts",
     "db:reset:test": "tsx scripts/run-env.ts test node_modules/tsx/dist/cli.mjs scripts/reset-test-db.ts",
     "test": "tsx scripts/run-env.ts test node_modules/vitest/vitest.mjs",
-    "test:run": "tsx scripts/run-env.ts test node_modules/vitest/vitest.mjs run"
+    "test:run": "tsx scripts/run-env.ts test node_modules/vitest/vitest.mjs run",
+    "test:local": "pnpm run db:up && pnpm run db:migrate:test && pnpm run test:run"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

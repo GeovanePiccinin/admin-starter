@@ -38,18 +38,18 @@ model User {
   passwordHash String
 }
 
-model Appointment {
-  id             String @id @default(cuid())
-  tenantId       String
-  professionalId String
-  professional   Professional @relation(fields: [professionalId], references: [id])
+model ExampleRelation {
+  id        String @id @default(cuid())
+  tenantId  String
+  ownerId   String
+  owner     ExampleOwner @relation(fields: [ownerId], references: [id])
 }
 
 model Tenant {
   id String @id
 }
 
-model Professional {
+model ExampleOwner {
   id String @id
 }
 
@@ -100,7 +100,7 @@ describe("parsePrismaSchema", () => {
 
   it("does not offer models with tenant-scoped foreign-key relations", () => {
     expect(parsePrismaSchema(schema).map((model) => model.name)).not.toContain(
-      "Appointment",
+      "ExampleRelation",
     );
   });
 

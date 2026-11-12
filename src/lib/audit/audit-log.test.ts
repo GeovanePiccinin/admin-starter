@@ -24,7 +24,7 @@ describe("writeAuditLog", () => {
       tenantId: "tenant-1",
       actorId: "user-1",
       action: "update",
-      entity: "ClientRecord",
+      entity: "ExampleItem",
       entityId: "record-1",
     });
 
@@ -33,7 +33,7 @@ describe("writeAuditLog", () => {
         tenantId: "tenant-1",
         actorId: "user-1",
         action: "update",
-        entity: "ClientRecord",
+        entity: "ExampleItem",
         entityId: "record-1",
       },
     });

@@ -1,13 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  BriefcaseBusiness,
-  CalendarDays,
+  Boxes,
   LayoutDashboard,
-  Users,
-  HardHat,
-  ClipboardCheck,
-  FileText,
-  CreditCard,
 } from "lucide-react";
 
 export interface NavigationItem {
@@ -23,38 +17,8 @@ export const navigationItems: NavigationItem[] = [
     icon: LayoutDashboard,
   },
   {
-    label: "Serviços",
-    href: "/services",
-    icon: BriefcaseBusiness,
-  },
-  {
-    label: "Clientes",
-    href: "/clients",
-    icon: Users,
-  },
-  {
-    label: "Profissionais",
-    href: "/professionals",
-    icon: HardHat,
-  },
-  {
-    label: "Agendamentos",
-    href: "/appointments",
-    icon: CalendarDays,
-  },
-  {
-    label: "Atendimentos",
-    href: "/attendances",
-    icon: ClipboardCheck,
-  },
-  {
-    label: "Fichas de clientes",
-    href: "/client-records",
-    icon: FileText,
-  },
-  {
-    label: "Pagamentos",
-    href: "/payments",
-    icon: CreditCard,
+    label: "Itens de exemplo",
+    href: "/example-items",
+    icon: Boxes,
   },
 ];

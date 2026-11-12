@@ -7,6 +7,7 @@ import { parse } from "dotenv";
 import {
   assertEnvironmentDatabase,
   getDatabaseTarget,
+  resolveDatabaseUrl,
   sameDatabaseTarget,
   type AppEnvironment,
 } from "../src/lib/db/database-target";
@@ -76,10 +77,14 @@ function loadCommandEnvironment(
   const env = readEnvFile(
     environment === "development" ? ".env.development" : ".env.test",
   );
-  const connectionString = env.DATABASE_URL?.trim();
-  if (!connectionString) {
+  const configuredConnectionString = env.DATABASE_URL?.trim();
+  if (!configuredConnectionString) {
     throw new Error(`DATABASE_URL is required in .env.${environment}.`);
   }
+  const connectionString = resolveDatabaseUrl(
+    configuredConnectionString,
+    env,
+  );
 
   const target = assertEnvironmentDatabase(connectionString, environment);
   const configuredSchema = env.DATABASE_SCHEMA?.trim();
@@ -88,10 +93,14 @@ function loadCommandEnvironment(
   }
 
   if (environment === "test") {
-    const testConnectionString = env.TEST_DATABASE_URL?.trim();
-    if (!testConnectionString) {
+    const configuredTestConnectionString = env.TEST_DATABASE_URL?.trim();
+    if (!configuredTestConnectionString) {
       throw new Error("TEST_DATABASE_URL is required in .env.test.");
     }
+    const testConnectionString = resolveDatabaseUrl(
+      configuredTestConnectionString,
+      env,
+    );
 
     const testTarget = assertEnvironmentDatabase(testConnectionString, "test");
     if (!sameDatabaseTarget(target, testTarget)) {
@@ -103,10 +112,14 @@ function loadCommandEnvironment(
         continue;
       }
 
-      const configuredUrl = parse(readFileSync(fileName)).DATABASE_URL?.trim();
+      const existingEnv = parse(readFileSync(fileName));
+      const configuredUrl = existingEnv.DATABASE_URL?.trim();
       if (
         configuredUrl &&
-        sameDatabaseTarget(target, getDatabaseTarget(configuredUrl))
+        sameDatabaseTarget(
+          target,
+          getDatabaseTarget(resolveDatabaseUrl(configuredUrl, existingEnv)),
+        )
       ) {
         throw new Error(
           `.env.test points to the same database as ${fileName}. Configure a dedicated test database.`,

@@ -14,9 +14,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Basic Next App",
+  title: "Software Starter",
   description:
-    "Basic Next.js app with authentication and authorization using NextAuth.js and Prisma",
+    "Base full-stack reutilizável com autenticação, autorização, multi-tenancy e observabilidade.",
 };
 
 interface RootLayoutProps {
@@ -27,7 +27,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html
       suppressHydrationWarning
-      lang="en"
+      lang="pt-BR"
       className={cn(
         "h-full",
         "antialiased",

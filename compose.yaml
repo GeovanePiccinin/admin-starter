@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: starter
+      POSTGRES_PASSWORD: starter_local_only
+      POSTGRES_DB: software_starter_dev
+    ports:
+      - "127.0.0.1:${STARTER_POSTGRES_PORT:-54329}:5432"
+    volumes:
+      - starter_postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init/10-create-test-database.sql:/docker-entrypoint-initdb.d/10-create-test-database.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready --username=\"$${POSTGRES_USER}\" --dbname=\"$${POSTGRES_DB}\" && pg_isready --username=\"$${POSTGRES_USER}\" --dbname=software_starter_test",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  starter_postgres_data:

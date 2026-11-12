@@ -4,7 +4,7 @@ import { getCrudAccessPolicy } from "./crud-policy";
 
 describe("getCrudAccessPolicy", () => {
   it("enables the generic scaffold only for reviewed model policies", () => {
-    expect(getCrudAccessPolicy("Service")).toMatchObject({
+    expect(getCrudAccessPolicy("ExampleItem")).toMatchObject({
       scaffoldSupported: true,
     });
     expect(getCrudAccessPolicy("Client")).toMatchObject({
@@ -12,10 +12,10 @@ describe("getCrudAccessPolicy", () => {
     });
   });
 
-  it("allows professional reads but restricts service mutations to administrators", () => {
-    expect(getCrudAccessPolicy("Service")).toEqual({
+  it("restricts example item reads and mutations to administrators", () => {
+    expect(getCrudAccessPolicy("ExampleItem")).toEqual({
       scaffoldSupported: true,
-      readRoles: ["ADMIN", "PROFESSIONAL"],
+      readRoles: ["ADMIN"],
       createRoles: ["ADMIN"],
       manageRoles: ["ADMIN"],
     });

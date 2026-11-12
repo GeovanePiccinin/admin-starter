@@ -8,6 +8,7 @@ import {
   assertEnvironmentDatabase,
   clearPostgresEnvironmentOverrides,
   getDatabaseTarget,
+  resolveDatabaseUrl,
   sameDatabaseTarget,
 } from "./src/lib/db/database-target";
 
@@ -17,12 +18,14 @@ if (!existsSync(envPath)) {
 }
 
 const testEnv = parse(readFileSync(envPath));
-const databaseUrl = testEnv.DATABASE_URL?.trim();
-const testDatabaseUrl = testEnv.TEST_DATABASE_URL?.trim();
+const configuredDatabaseUrl = testEnv.DATABASE_URL?.trim();
+const configuredTestDatabaseUrl = testEnv.TEST_DATABASE_URL?.trim();
 
-if (!databaseUrl || !testDatabaseUrl) {
+if (!configuredDatabaseUrl || !configuredTestDatabaseUrl) {
   throw new Error(".env.test must define DATABASE_URL and TEST_DATABASE_URL.");
 }
+const databaseUrl = resolveDatabaseUrl(configuredDatabaseUrl, testEnv);
+const testDatabaseUrl = resolveDatabaseUrl(configuredTestDatabaseUrl, testEnv);
 
 const databaseTarget = assertEnvironmentDatabase(databaseUrl, "test");
 const testDatabaseTarget = assertEnvironmentDatabase(testDatabaseUrl, "test");
@@ -36,10 +39,14 @@ for (const fileName of [".env", ".env.development"]) {
     continue;
   }
 
-  const configuredUrl = parse(readFileSync(filePath)).DATABASE_URL?.trim();
+  const configuredEnv = parse(readFileSync(filePath));
+  const configuredUrl = configuredEnv.DATABASE_URL?.trim();
   if (
     configuredUrl &&
-    sameDatabaseTarget(databaseTarget, getDatabaseTarget(configuredUrl))
+    sameDatabaseTarget(
+      databaseTarget,
+      getDatabaseTarget(resolveDatabaseUrl(configuredUrl, configuredEnv)),
+    )
   ) {
     throw new Error(
       `.env.test points to the same database as ${fileName}. Configure a dedicated test database.`,
