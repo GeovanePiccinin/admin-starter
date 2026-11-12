@@ -18,7 +18,7 @@ de livros, ciclos de leitura e encontros ainda não fazem parte do starter.
 - NextAuth com provedor Credentials e sessões JWT.
 - Prisma ORM 7 e PostgreSQL 16, com adapter `pg`.
 - Zod, React Hook Form, TanStack Query e TanStack Table.
-- Tailwind CSS e componentes UI compartilhados.
+- Tailwind CSS/Shadcn e componentes UI compartilhados.
 - Vitest, ESLint, Pino e integração opcional com Sentry.
 
 ### Organização de pastas
