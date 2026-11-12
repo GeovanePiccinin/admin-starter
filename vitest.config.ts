@@ -30,7 +30,9 @@ const testDatabaseUrl = resolveDatabaseUrl(configuredTestDatabaseUrl, testEnv);
 const databaseTarget = assertEnvironmentDatabase(databaseUrl, "test");
 const testDatabaseTarget = assertEnvironmentDatabase(testDatabaseUrl, "test");
 if (!sameDatabaseTarget(databaseTarget, testDatabaseTarget)) {
-  throw new Error("DATABASE_URL and TEST_DATABASE_URL in .env.test must match.");
+  throw new Error(
+    "DATABASE_URL and TEST_DATABASE_URL in .env.test must match.",
+  );
 }
 
 for (const fileName of [".env", ".env.development"]) {

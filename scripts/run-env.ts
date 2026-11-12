@@ -81,15 +81,14 @@ function loadCommandEnvironment(
   if (!configuredConnectionString) {
     throw new Error(`DATABASE_URL is required in .env.${environment}.`);
   }
-  const connectionString = resolveDatabaseUrl(
-    configuredConnectionString,
-    env,
-  );
+  const connectionString = resolveDatabaseUrl(configuredConnectionString, env);
 
   const target = assertEnvironmentDatabase(connectionString, environment);
   const configuredSchema = env.DATABASE_SCHEMA?.trim();
   if (configuredSchema && configuredSchema !== target.schema) {
-    throw new Error(`DATABASE_SCHEMA in .env.${environment} conflicts with DATABASE_URL.`);
+    throw new Error(
+      `DATABASE_SCHEMA in .env.${environment} conflicts with DATABASE_URL.`,
+    );
   }
 
   if (environment === "test") {
@@ -104,7 +103,9 @@ function loadCommandEnvironment(
 
     const testTarget = assertEnvironmentDatabase(testConnectionString, "test");
     if (!sameDatabaseTarget(target, testTarget)) {
-      throw new Error("DATABASE_URL and TEST_DATABASE_URL in .env.test must match.");
+      throw new Error(
+        "DATABASE_URL and TEST_DATABASE_URL in .env.test must match.",
+      );
     }
 
     for (const fileName of [".env", ".env.development"]) {
@@ -166,9 +167,7 @@ function main(): void {
     );
   }
 
-  const environment = environmentArg as
-    | AppEnvironment
-    | "schema";
+  const environment = environmentArg as AppEnvironment | "schema";
   const commandEnvironment = loadCommandEnvironment(environment);
   const child = spawn(process.execPath, command, {
     cwd: process.cwd(),
@@ -188,6 +187,8 @@ function main(): void {
 try {
   main();
 } catch (error: unknown) {
-  console.error(error instanceof Error ? error.message : "Environment setup failed.");
+  console.error(
+    error instanceof Error ? error.message : "Environment setup failed.",
+  );
   process.exitCode = 1;
 }

@@ -12,9 +12,7 @@ describe("resolveDatabaseUrl", () => {
         "postgresql://starter:local@127.0.0.1:${STARTER_POSTGRES_PORT}/software_starter_dev",
         { STARTER_POSTGRES_PORT: "54330" },
       ),
-    ).toBe(
-      "postgresql://starter:local@127.0.0.1:54330/software_starter_dev",
-    );
+    ).toBe("postgresql://starter:local@127.0.0.1:54330/software_starter_dev");
   });
 
   it.each(["0", "65536", "abc", ""])(

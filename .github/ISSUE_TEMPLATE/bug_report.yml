@@ -1,0 +1,60 @@
+name: Bug report
+description: Report a reproducible defect in the starter.
+title: "bug: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report one problem per issue. Do not include credentials, secrets, or personal data.
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Where and when did the problem occur?
+      placeholder: Page, feature, command, and environment.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: List the smallest reliable sequence that reproduces the problem.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Add sanitized logs or screenshots. Remove secrets and personal data.
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node.js, pnpm, browser, and relevant commit.
+    validations:
+      required: true
+  - type: checkboxes
+    id: completion
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for a report of this problem.
+          required: true
+        - label: I removed credentials, secrets, and personal data from this report.
+          required: true

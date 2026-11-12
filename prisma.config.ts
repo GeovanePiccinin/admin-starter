@@ -26,10 +26,7 @@ if (appEnvironment !== "schema") {
     throw new Error("DATABASE_URL is required for this Prisma operation.");
   }
 
-  assertEnvironmentDatabase(
-    databaseUrl,
-    appEnvironment,
-  );
+  assertEnvironmentDatabase(databaseUrl, appEnvironment);
 }
 
 export default defineConfig({

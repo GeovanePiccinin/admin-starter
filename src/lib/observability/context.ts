@@ -20,9 +20,7 @@ export function runWithObservabilityContext<T>(
   return storage.run(context, callback);
 }
 
-export function getObservabilityContext():
-  | ObservabilityContext
-  | undefined {
+export function getObservabilityContext(): ObservabilityContext | undefined {
   return storage.getStore();
 }
 

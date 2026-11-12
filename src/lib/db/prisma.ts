@@ -25,7 +25,9 @@ if (
 }
 
 if (!connectionString) {
-  throw new Error("DATABASE_URL is not configured for this application environment.");
+  throw new Error(
+    "DATABASE_URL is not configured for this application environment.",
+  );
 }
 
 assertEnvironmentDatabase(connectionString, appEnvironment);

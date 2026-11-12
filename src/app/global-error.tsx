@@ -18,9 +18,7 @@ export default function GlobalError({
     <html lang="pt-BR">
       <body>
         <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-          <h1 className="text-xl font-semibold">
-            Ocorreu um erro inesperado.
-          </h1>
+          <h1 className="text-xl font-semibold">Ocorreu um erro inesperado.</h1>
           <p className="text-sm text-muted-foreground">
             Tente novamente. Se o problema persistir, entre em contato com o
             suporte.

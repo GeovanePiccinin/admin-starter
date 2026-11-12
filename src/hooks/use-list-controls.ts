@@ -22,8 +22,7 @@ interface UseListControlsResult<TSortField extends string> {
   ) => void;
   setPagination: (
     pagination:
-      | PaginationState
-      | ((previous: PaginationState) => PaginationState),
+      PaginationState | ((previous: PaginationState) => PaginationState),
   ) => void;
 
   setSort: (field: TSortField, descending?: boolean) => void;

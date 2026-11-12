@@ -129,8 +129,8 @@ export default function Home() {
             </h2>
             <p className="mt-4 leading-7 text-muted-foreground">
               A feature ExampleItem demonstra validação, Server Actions,
-              persistência tenant-scoped, autorização administrativa e
-              interface CRUD sem impor um domínio de produto.
+              persistência tenant-scoped, autorização administrativa e interface
+              CRUD sem impor um domínio de produto.
             </p>
           </div>
 

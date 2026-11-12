@@ -97,9 +97,11 @@ export function parsePrismaSchema(schema: string): PrismaSchemaModel[] {
             .filter(Boolean) ?? [],
       ),
     );
-    const rawFields = [...body.matchAll(
-      /^[ \t]{2,}(\w+)[ \t]+([A-Za-z]\w*)(\?)?(\[\])?(?:[ \t]+(.+))?$/gm,
-    )];
+    const rawFields = [
+      ...body.matchAll(
+        /^[ \t]{2,}(\w+)[ \t]+([A-Za-z]\w*)(\?)?(\[\])?(?:[ \t]+(.+))?$/gm,
+      ),
+    ];
     const parsedFields = rawFields.flatMap((match) => {
       const [, name, type, optionalMark, listMark, attributes = ""] = match;
 
@@ -142,10 +144,7 @@ export function parsePrismaSchema(schema: string): PrismaSchemaModel[] {
         /@id\b/.test(match[5] ?? ""),
     );
     const hasStringTenantId = rawFields.some(
-      (match) =>
-        match[1] === "tenantId" &&
-        match[2] === "String" &&
-        !match[4],
+      (match) => match[1] === "tenantId" && match[2] === "String" && !match[4],
     );
 
     if (
@@ -161,7 +160,9 @@ export function parsePrismaSchema(schema: string): PrismaSchemaModel[] {
   return parsedModels;
 }
 
-export function getUnsupportedScalarFields(schema: string): Map<string, string[]> {
+export function getUnsupportedScalarFields(
+  schema: string,
+): Map<string, string[]> {
   const modelBlocks = extractBlockNames(schema, "model");
   const modelNames = new Set(modelBlocks.keys());
   const enumNames = new Set(extractBlockNames(schema, "enum").keys());
@@ -169,9 +170,11 @@ export function getUnsupportedScalarFields(schema: string): Map<string, string[]
   const unsupported = new Map<string, string[]>();
 
   for (const [modelName, body] of modelBlocks) {
-    const fields = [...body.matchAll(
-      /^[ \t]{2,}(\w+)[ \t]+([A-Za-z]\w*)(\?)?(\[\])?(?:[ \t]+(.+))?$/gm,
-    )];
+    const fields = [
+      ...body.matchAll(
+        /^[ \t]{2,}(\w+)[ \t]+([A-Za-z]\w*)(\?)?(\[\])?(?:[ \t]+(.+))?$/gm,
+      ),
+    ];
     const unsupportedFields = fields.flatMap((match) => {
       const [, name, type, , listMark] = match;
 

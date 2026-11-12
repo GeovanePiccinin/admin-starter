@@ -38,17 +38,19 @@ async function main(): Promise<void> {
     `Resetting only validated test database ${target.host}:${target.port}/${target.database} (${target.schema}).`,
   );
 
-  run(
-    path.resolve(process.cwd(), "node_modules/prisma/build/index.js"),
-    ["migrate", "reset", "--force"],
-  );
-  run(
-    path.resolve(process.cwd(), "node_modules/tsx/dist/cli.mjs"),
-    ["prisma/seed.ts"],
-  );
+  run(path.resolve(process.cwd(), "node_modules/prisma/build/index.js"), [
+    "migrate",
+    "reset",
+    "--force",
+  ]);
+  run(path.resolve(process.cwd(), "node_modules/tsx/dist/cli.mjs"), [
+    "prisma/seed.ts",
+  ]);
 }
 
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : "Test DB reset failed.");
+  console.error(
+    error instanceof Error ? error.message : "Test DB reset failed.",
+  );
   process.exitCode = 1;
 });

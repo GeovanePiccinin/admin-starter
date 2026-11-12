@@ -9,10 +9,7 @@ import { DomainError } from "@/lib/errors/domain-error";
 import { logger } from "@/lib/logger/logger";
 import { RateLimitExceededError } from "@/lib/rate-limit/rate-limit";
 
-import {
-  createOperationId,
-  runWithObservabilityContext,
-} from "./context";
+import { createOperationId, runWithObservabilityContext } from "./context";
 
 interface SafeActionFailure {
   level: "warn" | "error";
@@ -80,38 +77,35 @@ export async function runServerAction<T>(
 ): Promise<T> {
   const operationId = createOperationId();
 
-  return runWithObservabilityContext(
-    { operation, operationId },
-    async () => {
-      try {
-        return await callback();
-      } catch (error: unknown) {
-        const failure = classifyActionFailure(error);
-        const fields = {
-          operation,
-          operationId,
-          category: failure.category,
-          ...(error instanceof Error ? { errorType: error.name } : {}),
-        };
+  return runWithObservabilityContext({ operation, operationId }, async () => {
+    try {
+      return await callback();
+    } catch (error: unknown) {
+      const failure = classifyActionFailure(error);
+      const fields = {
+        operation,
+        operationId,
+        category: failure.category,
+        ...(error instanceof Error ? { errorType: error.name } : {}),
+      };
 
-        if (failure.level === "error") {
-          logger.error(fields, "Unhandled Server Action failure");
-          Sentry.withScope((scope) => {
-            scope.setTag("operation", operation);
-            scope.setTag("operation_id", operationId);
-            scope.setTag("error_category", failure.category);
-            Sentry.captureException(error);
-          });
-        } else {
-          logger.warn(fields, "Server Action rejected");
-        }
-
-        throw new Error(
-          failure.level === "error"
-            ? `${failure.message} (referência: ${operationId})`
-            : failure.message,
-        );
+      if (failure.level === "error") {
+        logger.error(fields, "Unhandled Server Action failure");
+        Sentry.withScope((scope) => {
+          scope.setTag("operation", operation);
+          scope.setTag("operation_id", operationId);
+          scope.setTag("error_category", failure.category);
+          Sentry.captureException(error);
+        });
+      } else {
+        logger.warn(fields, "Server Action rejected");
       }
-    },
-  );
+
+      throw new Error(
+        failure.level === "error"
+          ? `${failure.message} (referência: ${operationId})`
+          : failure.message,
+      );
+    }
+  });
 }

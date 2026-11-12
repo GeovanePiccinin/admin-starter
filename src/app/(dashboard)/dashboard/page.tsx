@@ -54,7 +54,8 @@ export default function DashboardPage() {
           <h2 className="text-lg font-semibold">Formulários</h2>
 
           <p className="text-sm text-muted-foreground">
-            Integração entre React Hook Form, Zod e os componentes de formulário.
+            Integração entre React Hook Form, Zod e os componentes de
+            formulário.
           </p>
         </div>
 

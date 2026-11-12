@@ -30,7 +30,12 @@ const redactPaths = sensitiveFields.flatMap((field) => [
 const loggerOptions: pino.LoggerOptions = {
   level: process.env.LOG_LEVEL ?? "info",
   redact: {
-    paths: [...redactPaths, "req.headers.authorization", "req.headers.cookie", "res.headers.set-cookie"],
+    paths: [
+      ...redactPaths,
+      "req.headers.authorization",
+      "req.headers.cookie",
+      "res.headers.set-cookie",
+    ],
     censor: "[REDACTED]",
   },
   mixin() {
